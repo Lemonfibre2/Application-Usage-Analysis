@@ -1,0 +1,3456 @@
+{
+  "datasets": [
+    {
+      "name": "4c824b19",
+      "displayName": "kpi_total_usage_events",
+      "queryLines": [
+        "WITH lab_counts AS (\n",
+        "  SELECT\n",
+        "    user,\n",
+        "    application_name,\n",
+        "    start_datetime,\n",
+        "    COUNT(DISTINCT lab_name) AS lab_count,\n",
+        "    MAX(lab_name) AS single_lab_name\n",
+        "  FROM workspace.gold.user_lab_application_gold\n",
+        "  WHERE application_name IN (\n",
+        "    'RNBI_AEL_BCP_ANALYSIS',\n",
+        "    'RNBI_BUDGET_FORECAST_V2',\n",
+        "    'RNBI_LEADTIME',\n",
+        "    'RNBI_MANUFAC_DEFECTS_ANALYSIS',\n",
+        "    'RNBI_MANUFAC_EMFitting',\n",
+        "    'RNBI_MANUFAC_HC_BASKET_TRACKING',\n",
+        "    'RNBI_MANUFACTURING_RxSR_RxMFGOA',\n",
+        "    'RNBI_MANUFACTURING_V2',\n",
+        "    'DEFECTS_ANALYSIS',\n",
+        "    'HC_BASKET_TRACKING',\n",
+        "    'EMFitting',\n",
+        "    'PCKG',\n",
+        "    'fcsd_dashboard'\n",
+        ")\n",
+        "  GROUP BY user, application_name, start_datetime\n",
+        "),\n",
+        "deduped AS (\n",
+        "  SELECT\n",
+        "    g.application_name,\n",
+        "    g.start_datetime,\n",
+        "    TO_TIMESTAMP(g.start_datetime, 'yyyy/MM/dd HH:mm:ss') AS start_ts,\n",
+        "    COALESCE(g.user, 'Unknown') AS user,\n",
+        "    g.event_duration_seconds,\n",
+        "    g.region,\n",
+        "    g.event_type,\n",
+        "    g.object,\n",
+        "    g.top_level_folder,\n",
+        "    CASE\n",
+        "      WHEN lc.lab_count > 1 THEN 'Multi-lab-access'\n",
+        "      ELSE lc.single_lab_name\n",
+        "    END AS lab_name,\n",
+        "    ROW_NUMBER() OVER (\n",
+        "      PARTITION BY g.user, g.application_name, g.start_datetime\n",
+        "      ORDER BY g.lab_name\n",
+        "    ) AS rn\n",
+        "  FROM workspace.gold.user_lab_application_gold g\n",
+        "  JOIN lab_counts lc\n",
+        "    ON g.user = lc.user\n",
+        "    AND g.application_name = lc.application_name\n",
+        "    AND g.start_datetime = lc.start_datetime\n",
+        "  WHERE g.application_name IN (\n",
+        "    'RNBI_AEL_BCP_ANALYSIS',\n",
+        "    'RNBI_BUDGET_FORECAST_V2',\n",
+        "    'RNBI_LEADTIME',\n",
+        "    'RNBI_MANUFAC_DEFECTS_ANALYSIS',\n",
+        "    'RNBI_MANUFAC_EMFitting',\n",
+        "    'RNBI_MANUFAC_HC_BASKET_TRACKING',\n",
+        "    'RNBI_MANUFACTURING_RxSR_RxMFGOA',\n",
+        "    'RNBI_MANUFACTURING_V2',\n",
+        "    'DEFECTS_ANALYSIS',\n",
+        "    'HC_BASKET_TRACKING',\n",
+        "    'EMFitting',\n",
+        "    'PCKG',\n",
+        "    'fcsd_dashboard'\n",
+        ")\n",
+        ")\n",
+        "SELECT\n",
+        "  CASE\n",
+        "    WHEN application_name = 'RNBI_MANUFACTURING_V2' THEN 'Optical Analysis'\n",
+        "    WHEN application_name = 'RNBI_MANUFACTURING_RxSR_RxMFGOA' THEN 'Servicerate Analysis/Order Analysis'\n",
+        "    WHEN application_name LIKE 'RNBI_MANUFAC_%' THEN REGEXP_REPLACE(application_name, '^RNBI_MANUFAC_', '')\n",
+        "    WHEN application_name LIKE 'RNBI%' THEN REGEXP_REPLACE(application_name, '^RNBI_?', '')\n",
+        "    ELSE application_name\n",
+        "  END AS application_name,\n",
+        "  DATE_TRUNC('month', start_ts) AS usage_month,\n",
+        "  user AS user_name,\n",
+        "  COUNT(*) AS total_usage_events\n",
+        "FROM deduped\n",
+        "WHERE rn = 1\n",
+        "GROUP BY\n",
+        "  CASE\n",
+        "    WHEN application_name = 'RNBI_MANUFACTURING_V2' THEN 'Optical Analysis'\n",
+        "    WHEN application_name = 'RNBI_MANUFACTURING_RxSR_RxMFGOA' THEN 'Servicerate Analysis/Order Analysis'\n",
+        "    WHEN application_name LIKE 'RNBI_MANUFAC_%' THEN REGEXP_REPLACE(application_name, '^RNBI_MANUFAC_', '')\n",
+        "    WHEN application_name LIKE 'RNBI%' THEN REGEXP_REPLACE(application_name, '^RNBI_?', '')\n",
+        "    ELSE application_name\n",
+        "  END,\n",
+        "  DATE_TRUNC('month', start_ts),\n",
+        "  user"
+      ]
+    },
+    {
+      "name": "7b5d62c3",
+      "displayName": "kpi_active_users",
+      "queryLines": [
+        "WITH lab_counts AS (\n",
+        "  SELECT\n",
+        "    user,\n",
+        "    application_name,\n",
+        "    start_datetime,\n",
+        "    COUNT(DISTINCT lab_name) AS lab_count,\n",
+        "    MAX(lab_name) AS single_lab_name\n",
+        "  FROM workspace.gold.user_lab_application_gold\n",
+        "  WHERE application_name IN (\n",
+        "    'RNBI_AEL_BCP_ANALYSIS',\n",
+        "    'RNBI_BUDGET_FORECAST_V2',\n",
+        "    'RNBI_LEADTIME',\n",
+        "    'RNBI_MANUFAC_DEFECTS_ANALYSIS',\n",
+        "    'RNBI_MANUFAC_EMFitting',\n",
+        "    'RNBI_MANUFAC_HC_BASKET_TRACKING',\n",
+        "    'RNBI_MANUFACTURING_RxSR_RxMFGOA',\n",
+        "    'RNBI_MANUFACTURING_V2',\n",
+        "    'DEFECTS_ANALYSIS',\n",
+        "    'HC_BASKET_TRACKING',\n",
+        "    'EMFitting',\n",
+        "    'PCKG',\n",
+        "    'fcsd_dashboard'\n",
+        "  )\n",
+        "  GROUP BY user, application_name, start_datetime\n",
+        "),\n",
+        "deduped AS (\n",
+        "  SELECT\n",
+        "    g.application_name,\n",
+        "    TO_TIMESTAMP(g.start_datetime, 'yyyy/MM/dd HH:mm:ss') AS start_ts,\n",
+        "    COALESCE(g.user, 'Unknown') AS user,\n",
+        "    ROW_NUMBER() OVER (\n",
+        "      PARTITION BY g.user, g.application_name, g.start_datetime\n",
+        "      ORDER BY g.lab_name\n",
+        "    ) AS rn\n",
+        "  FROM workspace.gold.user_lab_application_gold g\n",
+        "  JOIN lab_counts lc\n",
+        "    ON g.user = lc.user\n",
+        "    AND g.application_name = lc.application_name\n",
+        "    AND g.start_datetime = lc.start_datetime\n",
+        "  WHERE g.application_name IN (\n",
+        "    'RNBI_AEL_BCP_ANALYSIS',\n",
+        "    'RNBI_BUDGET_FORECAST_V2',\n",
+        "    'RNBI_LEADTIME',\n",
+        "    'RNBI_MANUFAC_DEFECTS_ANALYSIS',\n",
+        "    'RNBI_MANUFAC_EMFitting',\n",
+        "    'RNBI_MANUFAC_HC_BASKET_TRACKING',\n",
+        "    'RNBI_MANUFACTURING_RxSR_RxMFGOA',\n",
+        "    'RNBI_MANUFACTURING_V2',\n",
+        "    'DEFECTS_ANALYSIS',\n",
+        "    'HC_BASKET_TRACKING',\n",
+        "    'EMFitting',\n",
+        "    'PCKG',\n",
+        "    'fcsd_dashboard'\n",
+        "  )\n",
+        ")\n",
+        "SELECT\n",
+        "  CASE\n",
+        "    WHEN application_name = 'RNBI_MANUFACTURING_V2' THEN 'Optical Analysis'\n",
+        "    WHEN application_name = 'RNBI_MANUFACTURING_RxSR_RxMFGOA' THEN 'Servicerate Analysis/Order Analysis'\n",
+        "    WHEN application_name LIKE 'RNBI_MANUFAC_%' THEN REGEXP_REPLACE(application_name, '^RNBI_MANUFAC_', '')\n",
+        "    WHEN application_name LIKE 'RNBI%' THEN REGEXP_REPLACE(application_name, '^RNBI_?', '')\n",
+        "    ELSE application_name\n",
+        "  END AS application_name,\n",
+        "  DATE_TRUNC('month', start_ts) AS usage_month,\n",
+        "  COUNT(DISTINCT user) AS active_users\n",
+        "FROM deduped\n",
+        "WHERE rn = 1\n",
+        "GROUP BY\n",
+        "  CASE\n",
+        "    WHEN application_name = 'RNBI_MANUFACTURING_V2' THEN 'Optical Analysis'\n",
+        "    WHEN application_name = 'RNBI_MANUFACTURING_RxSR_RxMFGOA' THEN 'Servicerate Analysis/Order Analysis'\n",
+        "    WHEN application_name LIKE 'RNBI_MANUFAC_%' THEN REGEXP_REPLACE(application_name, '^RNBI_MANUFAC_', '')\n",
+        "    WHEN application_name LIKE 'RNBI%' THEN REGEXP_REPLACE(application_name, '^RNBI_?', '')\n",
+        "    ELSE application_name\n",
+        "  END,\n",
+        "  DATE_TRUNC('month', start_ts)"
+      ]
+    },
+    {
+      "name": "87abe982",
+      "displayName": "kpi_active_labs",
+      "queryLines": [
+        "WITH lab_counts AS (\n",
+        "  SELECT\n",
+        "    user,\n",
+        "    application_name,\n",
+        "    start_datetime,\n",
+        "    COUNT(DISTINCT lab_name) AS lab_count,\n",
+        "    MAX(lab_name) AS single_lab_name\n",
+        "  FROM workspace.gold.user_lab_application_gold\n",
+        "  WHERE application_name IN (\n",
+        "    'RNBI_AEL_BCP_ANALYSIS',\n",
+        "    'RNBI_BUDGET_FORECAST_V2',\n",
+        "    'RNBI_LEADTIME',\n",
+        "    'RNBI_MANUFAC_DEFECTS_ANALYSIS',\n",
+        "    'RNBI_MANUFAC_EMFitting',\n",
+        "    'RNBI_MANUFAC_HC_BASKET_TRACKING',\n",
+        "    'RNBI_MANUFACTURING_RxSR_RxMFGOA',\n",
+        "    'RNBI_MANUFACTURING_V2',\n",
+        "    'DEFECTS_ANALYSIS',\n",
+        "    'HC_BASKET_TRACKING',\n",
+        "    'EMFitting',\n",
+        "    'PCKG',\n",
+        "    'fcsd_dashboard'\n",
+        "  )\n",
+        "  GROUP BY user, application_name, start_datetime\n",
+        "),\n",
+        "deduped AS (\n",
+        "  SELECT\n",
+        "    g.application_name,\n",
+        "    TO_TIMESTAMP(g.start_datetime, 'yyyy/MM/dd HH:mm:ss') AS start_ts,\n",
+        "    CASE\n",
+        "      WHEN lc.lab_count > 1 THEN 'Multi-lab-access'\n",
+        "      ELSE lc.single_lab_name\n",
+        "    END AS lab_name,\n",
+        "    ROW_NUMBER() OVER (\n",
+        "      PARTITION BY g.user, g.application_name, g.start_datetime\n",
+        "      ORDER BY g.lab_name\n",
+        "    ) AS rn\n",
+        "  FROM workspace.gold.user_lab_application_gold g\n",
+        "  JOIN lab_counts lc\n",
+        "    ON g.user = lc.user\n",
+        "    AND g.application_name = lc.application_name\n",
+        "    AND g.start_datetime = lc.start_datetime\n",
+        "  WHERE g.application_name IN (\n",
+        "    'RNBI_AEL_BCP_ANALYSIS',\n",
+        "    'RNBI_BUDGET_FORECAST_V2',\n",
+        "    'RNBI_LEADTIME',\n",
+        "    'RNBI_MANUFAC_DEFECTS_ANALYSIS',\n",
+        "    'RNBI_MANUFAC_EMFitting',\n",
+        "    'RNBI_MANUFAC_HC_BASKET_TRACKING',\n",
+        "    'RNBI_MANUFACTURING_RxSR_RxMFGOA',\n",
+        "    'RNBI_MANUFACTURING_V2',\n",
+        "    'DEFECTS_ANALYSIS',\n",
+        "    'HC_BASKET_TRACKING',\n",
+        "    'EMFitting',\n",
+        "    'PCKG',\n",
+        "    'fcsd_dashboard'\n",
+        "  )\n",
+        ")\n",
+        "SELECT\n",
+        "  CASE\n",
+        "    WHEN application_name = 'RNBI_MANUFACTURING_V2' THEN 'Optical Analysis'\n",
+        "    WHEN application_name = 'RNBI_MANUFACTURING_RxSR_RxMFGOA' THEN 'Servicerate Analysis/Order Analysis'\n",
+        "    WHEN application_name LIKE 'RNBI_MANUFAC_%' THEN REGEXP_REPLACE(application_name, '^RNBI_MANUFAC_', '')\n",
+        "    WHEN application_name LIKE 'RNBI%' THEN REGEXP_REPLACE(application_name, '^RNBI_?', '')\n",
+        "    ELSE application_name\n",
+        "  END AS application_name,\n",
+        "  DATE_TRUNC('month', start_ts) AS usage_month,\n",
+        "  COUNT(DISTINCT CASE WHEN lab_name NOT IN ('Multi-lab-access', 'Unknown') THEN lab_name END) AS active_labs\n",
+        "FROM deduped\n",
+        "WHERE rn = 1\n",
+        "GROUP BY\n",
+        "  CASE\n",
+        "    WHEN application_name = 'RNBI_MANUFACTURING_V2' THEN 'Optical Analysis'\n",
+        "    WHEN application_name = 'RNBI_MANUFACTURING_RxSR_RxMFGOA' THEN 'Servicerate Analysis/Order Analysis'\n",
+        "    WHEN application_name LIKE 'RNBI_MANUFAC_%' THEN REGEXP_REPLACE(application_name, '^RNBI_MANUFAC_', '')\n",
+        "    WHEN application_name LIKE 'RNBI%' THEN REGEXP_REPLACE(application_name, '^RNBI_?', '')\n",
+        "    ELSE application_name\n",
+        "  END,\n",
+        "  DATE_TRUNC('month', start_ts)"
+      ]
+    },
+    {
+      "name": "d6499ecc",
+      "displayName": "kpi_total_hours_spent",
+      "queryLines": [
+        "WITH lab_counts AS (\n",
+        "  SELECT\n",
+        "    user,\n",
+        "    application_name,\n",
+        "    start_datetime,\n",
+        "    COUNT(DISTINCT lab_name) AS lab_count,\n",
+        "    MAX(lab_name) AS single_lab_name\n",
+        "  FROM workspace.gold.user_lab_application_gold\n",
+        "  WHERE application_name IN (\n",
+        "    'RNBI_AEL_BCP_ANALYSIS',\n",
+        "    'RNBI_BUDGET_FORECAST_V2',\n",
+        "    'RNBI_LEADTIME',\n",
+        "    'RNBI_MANUFAC_DEFECTS_ANALYSIS',\n",
+        "    'RNBI_MANUFAC_EMFitting',\n",
+        "    'RNBI_MANUFAC_HC_BASKET_TRACKING',\n",
+        "    'RNBI_MANUFACTURING_RxSR_RxMFGOA',\n",
+        "    'RNBI_MANUFACTURING_V2',\n",
+        "    'DEFECTS_ANALYSIS',\n",
+        "    'HC_BASKET_TRACKING',\n",
+        "    'EMFitting',\n",
+        "    'PCKG',\n",
+        "    'fcsd_dashboard'\n",
+        ")\n",
+        "  GROUP BY user, application_name, start_datetime\n",
+        "),\n",
+        "deduped AS (\n",
+        "  SELECT\n",
+        "    g.application_name,\n",
+        "    g.start_datetime,\n",
+        "    TO_TIMESTAMP(g.start_datetime, 'yyyy/MM/dd HH:mm:ss') AS start_ts,\n",
+        "    COALESCE(g.user, 'Unknown') AS user,\n",
+        "    g.event_duration_seconds,\n",
+        "    g.region,\n",
+        "    g.event_type,\n",
+        "    g.object,\n",
+        "    g.top_level_folder,\n",
+        "    CASE\n",
+        "      WHEN lc.lab_count > 1 THEN 'Multi-lab-access'\n",
+        "      ELSE lc.single_lab_name\n",
+        "    END AS lab_name,\n",
+        "    ROW_NUMBER() OVER (\n",
+        "      PARTITION BY g.user, g.application_name, g.start_datetime\n",
+        "      ORDER BY g.lab_name\n",
+        "    ) AS rn\n",
+        "  FROM workspace.gold.user_lab_application_gold g\n",
+        "  JOIN lab_counts lc\n",
+        "    ON g.user = lc.user\n",
+        "    AND g.application_name = lc.application_name\n",
+        "    AND g.start_datetime = lc.start_datetime\n",
+        "  WHERE g.application_name IN (\n",
+        "    'RNBI_AEL_BCP_ANALYSIS',\n",
+        "    'RNBI_BUDGET_FORECAST_V2',\n",
+        "    'RNBI_LEADTIME',\n",
+        "    'RNBI_MANUFAC_DEFECTS_ANALYSIS',\n",
+        "    'RNBI_MANUFAC_EMFitting',\n",
+        "    'RNBI_MANUFAC_HC_BASKET_TRACKING',\n",
+        "    'RNBI_MANUFACTURING_RxSR_RxMFGOA',\n",
+        "    'RNBI_MANUFACTURING_V2',\n",
+        "    'DEFECTS_ANALYSIS',\n",
+        "    'HC_BASKET_TRACKING',\n",
+        "    'EMFitting',\n",
+        "    'PCKG',\n",
+        "    'fcsd_dashboard'\n",
+        ")\n",
+        ")\n",
+        "SELECT\n",
+        "  CASE\n",
+        "    WHEN application_name = 'RNBI_MANUFACTURING_V2' THEN 'Optical Analysis'\n",
+        "    WHEN application_name = 'RNBI_MANUFACTURING_RxSR_RxMFGOA' THEN 'Servicerate Analysis/Order Analysis'\n",
+        "    WHEN application_name LIKE 'RNBI_MANUFAC_%' THEN REGEXP_REPLACE(application_name, '^RNBI_MANUFAC_', '')\n",
+        "    WHEN application_name LIKE 'RNBI%' THEN REGEXP_REPLACE(application_name, '^RNBI_?', '')\n",
+        "    ELSE application_name\n",
+        "  END AS application_name,\n",
+        "  DATE_TRUNC('month', start_ts) AS usage_month,\n",
+        "  user AS user_name,\n",
+        "  ROUND(SUM(event_duration_seconds) / 3600.0, 2) AS total_hours_spent\n",
+        "FROM deduped\n",
+        "WHERE rn = 1\n",
+        "GROUP BY\n",
+        "  CASE\n",
+        "    WHEN application_name = 'RNBI_MANUFACTURING_V2' THEN 'Optical Analysis'\n",
+        "    WHEN application_name = 'RNBI_MANUFACTURING_RxSR_RxMFGOA' THEN 'Servicerate Analysis/Order Analysis'\n",
+        "    WHEN application_name LIKE 'RNBI_MANUFAC_%' THEN REGEXP_REPLACE(application_name, '^RNBI_MANUFAC_', '')\n",
+        "    WHEN application_name LIKE 'RNBI%' THEN REGEXP_REPLACE(application_name, '^RNBI_?', '')\n",
+        "    ELSE application_name\n",
+        "  END,\n",
+        "  DATE_TRUNC('month', start_ts),\n",
+        "  user"
+      ]
+    },
+    {
+      "name": "d7c06e49",
+      "displayName": "kpi_avg_session_minutes",
+      "queryLines": [
+        "WITH lab_counts AS (\n",
+        "  SELECT\n",
+        "    user,\n",
+        "    application_name,\n",
+        "    start_datetime,\n",
+        "    COUNT(DISTINCT lab_name) AS lab_count,\n",
+        "    MAX(lab_name) AS single_lab_name\n",
+        "  FROM workspace.gold.user_lab_application_gold\n",
+        "  WHERE application_name IN (\n",
+        "    'RNBI_AEL_BCP_ANALYSIS',\n",
+        "    'RNBI_BUDGET_FORECAST_V2',\n",
+        "    'RNBI_LEADTIME',\n",
+        "    'RNBI_MANUFAC_DEFECTS_ANALYSIS',\n",
+        "    'RNBI_MANUFAC_EMFitting',\n",
+        "    'RNBI_MANUFAC_HC_BASKET_TRACKING',\n",
+        "    'RNBI_MANUFACTURING_RxSR_RxMFGOA',\n",
+        "    'RNBI_MANUFACTURING_V2',\n",
+        "    'DEFECTS_ANALYSIS',\n",
+        "    'HC_BASKET_TRACKING',\n",
+        "    'EMFitting',\n",
+        "    'PCKG',\n",
+        "    'fcsd_dashboard'\n",
+        ")\n",
+        "  GROUP BY user, application_name, start_datetime\n",
+        "),\n",
+        "deduped AS (\n",
+        "  SELECT\n",
+        "    g.application_name,\n",
+        "    g.start_datetime,\n",
+        "    TO_TIMESTAMP(g.start_datetime, 'yyyy/MM/dd HH:mm:ss') AS start_ts,\n",
+        "    COALESCE(g.user, 'Unknown') AS user,\n",
+        "    g.event_duration_seconds,\n",
+        "    g.region,\n",
+        "    g.event_type,\n",
+        "    g.object,\n",
+        "    g.top_level_folder,\n",
+        "    CASE\n",
+        "      WHEN lc.lab_count > 1 THEN 'Multi-lab-access'\n",
+        "      ELSE lc.single_lab_name\n",
+        "    END AS lab_name,\n",
+        "    ROW_NUMBER() OVER (\n",
+        "      PARTITION BY g.user, g.application_name, g.start_datetime\n",
+        "      ORDER BY g.lab_name\n",
+        "    ) AS rn\n",
+        "  FROM workspace.gold.user_lab_application_gold g\n",
+        "  JOIN lab_counts lc\n",
+        "    ON g.user = lc.user\n",
+        "    AND g.application_name = lc.application_name\n",
+        "    AND g.start_datetime = lc.start_datetime\n",
+        "  WHERE g.application_name IN (\n",
+        "    'RNBI_AEL_BCP_ANALYSIS',\n",
+        "    'RNBI_BUDGET_FORECAST_V2',\n",
+        "    'RNBI_LEADTIME',\n",
+        "    'RNBI_MANUFAC_DEFECTS_ANALYSIS',\n",
+        "    'RNBI_MANUFAC_EMFitting',\n",
+        "    'RNBI_MANUFAC_HC_BASKET_TRACKING',\n",
+        "    'RNBI_MANUFACTURING_RxSR_RxMFGOA',\n",
+        "    'RNBI_MANUFACTURING_V2',\n",
+        "    'DEFECTS_ANALYSIS',\n",
+        "    'HC_BASKET_TRACKING',\n",
+        "    'EMFitting',\n",
+        "    'PCKG',\n",
+        "    'fcsd_dashboard'\n",
+        ")\n",
+        ")\n",
+        "SELECT\n",
+        "  CASE\n",
+        "    WHEN application_name = 'RNBI_MANUFACTURING_V2' THEN 'Optical Analysis'\n",
+        "    WHEN application_name = 'RNBI_MANUFACTURING_RxSR_RxMFGOA' THEN 'Servicerate Analysis/Order Analysis'\n",
+        "    WHEN application_name LIKE 'RNBI_MANUFAC_%' THEN REGEXP_REPLACE(application_name, '^RNBI_MANUFAC_', '')\n",
+        "    WHEN application_name LIKE 'RNBI%' THEN REGEXP_REPLACE(application_name, '^RNBI_?', '')\n",
+        "    ELSE application_name\n",
+        "  END AS application_name,\n",
+        "  DATE_TRUNC('month', start_ts) AS usage_month,\n",
+        "  user AS user_name,\n",
+        "  ROUND(AVG(event_duration_seconds) / 60.0, 2) AS avg_session_minutes\n",
+        "FROM deduped\n",
+        "WHERE rn = 1\n",
+        "GROUP BY\n",
+        "  CASE\n",
+        "    WHEN application_name = 'RNBI_MANUFACTURING_V2' THEN 'Optical Analysis'\n",
+        "    WHEN application_name = 'RNBI_MANUFACTURING_RxSR_RxMFGOA' THEN 'Servicerate Analysis/Order Analysis'\n",
+        "    WHEN application_name LIKE 'RNBI_MANUFAC_%' THEN REGEXP_REPLACE(application_name, '^RNBI_MANUFAC_', '')\n",
+        "    WHEN application_name LIKE 'RNBI%' THEN REGEXP_REPLACE(application_name, '^RNBI_?', '')\n",
+        "    ELSE application_name\n",
+        "  END,\n",
+        "  DATE_TRUNC('month', start_ts),\n",
+        "  user"
+      ]
+    },
+    {
+      "name": "ac8b6538",
+      "displayName": "kpi_last_usage_timestamp",
+      "queryLines": [
+        "WITH lab_counts AS (\n",
+        "  SELECT\n",
+        "    user,\n",
+        "    application_name,\n",
+        "    start_datetime,\n",
+        "    COUNT(DISTINCT lab_name) AS lab_count,\n",
+        "    MAX(lab_name) AS single_lab_name\n",
+        "  FROM workspace.gold.user_lab_application_gold\n",
+        "  WHERE application_name IN (\n",
+        "    'RNBI_AEL_BCP_ANALYSIS',\n",
+        "    'RNBI_BUDGET_FORECAST_V2',\n",
+        "    'RNBI_LEADTIME',\n",
+        "    'RNBI_MANUFAC_DEFECTS_ANALYSIS',\n",
+        "    'RNBI_MANUFAC_EMFitting',\n",
+        "    'RNBI_MANUFAC_HC_BASKET_TRACKING',\n",
+        "    'RNBI_MANUFACTURING_RxSR_RxMFGOA',\n",
+        "    'RNBI_MANUFACTURING_V2',\n",
+        "    'DEFECTS_ANALYSIS',\n",
+        "    'HC_BASKET_TRACKING',\n",
+        "    'EMFitting',\n",
+        "    'PCKG',\n",
+        "    'fcsd_dashboard'\n",
+        "  )\n",
+        "  GROUP BY user, application_name, start_datetime\n",
+        "),\n",
+        "deduped AS (\n",
+        "  SELECT\n",
+        "    g.application_name,\n",
+        "    g.start_datetime,\n",
+        "    TO_TIMESTAMP(g.start_datetime, 'yyyy/MM/dd HH:mm:ss') AS start_ts,\n",
+        "    COALESCE(g.user, 'Unknown') AS user,\n",
+        "    g.event_duration_seconds,\n",
+        "    g.region,\n",
+        "    g.event_type,\n",
+        "    g.object,\n",
+        "    g.top_level_folder,\n",
+        "    CASE\n",
+        "      WHEN lc.lab_count > 1 THEN 'Multi-lab-access'\n",
+        "      ELSE lc.single_lab_name\n",
+        "    END AS lab_name,\n",
+        "    ROW_NUMBER() OVER (\n",
+        "      PARTITION BY g.user, g.application_name, g.start_datetime\n",
+        "      ORDER BY g.lab_name\n",
+        "    ) AS rn\n",
+        "  FROM workspace.gold.user_lab_application_gold g\n",
+        "  JOIN lab_counts lc\n",
+        "    ON g.user = lc.user\n",
+        "    AND g.application_name = lc.application_name\n",
+        "    AND g.start_datetime = lc.start_datetime\n",
+        "  WHERE g.application_name IN (\n",
+        "    'RNBI_AEL_BCP_ANALYSIS',\n",
+        "    'RNBI_BUDGET_FORECAST_V2',\n",
+        "    'RNBI_LEADTIME',\n",
+        "    'RNBI_MANUFAC_DEFECTS_ANALYSIS',\n",
+        "    'RNBI_MANUFAC_EMFitting',\n",
+        "    'RNBI_MANUFAC_HC_BASKET_TRACKING',\n",
+        "    'RNBI_MANUFACTURING_RxSR_RxMFGOA',\n",
+        "    'RNBI_MANUFACTURING_V2',\n",
+        "    'DEFECTS_ANALYSIS',\n",
+        "    'HC_BASKET_TRACKING',\n",
+        "    'EMFitting',\n",
+        "    'PCKG',\n",
+        "    'fcsd_dashboard'\n",
+        "  )\n",
+        ")\n",
+        "SELECT\n",
+        "  MAX(start_ts) AS last_usage_timestamp\n",
+        "FROM deduped\n",
+        "WHERE rn = 1"
+      ]
+    },
+    {
+      "name": "1cfe273e",
+      "displayName": "trend_daily_usage",
+      "queryLines": [
+        "WITH lab_counts AS (\n",
+        "  SELECT\n",
+        "    user,\n",
+        "    application_name,\n",
+        "    start_datetime,\n",
+        "    COUNT(DISTINCT lab_name) AS lab_count,\n",
+        "    MAX(lab_name) AS single_lab_name\n",
+        "  FROM workspace.gold.user_lab_application_gold\n",
+        "  WHERE application_name IN (\n",
+        "    'RNBI_AEL_BCP_ANALYSIS',\n",
+        "    'RNBI_BUDGET_FORECAST_V2',\n",
+        "    'RNBI_LEADTIME',\n",
+        "    'RNBI_MANUFAC_DEFECTS_ANALYSIS',\n",
+        "    'RNBI_MANUFAC_EMFitting',\n",
+        "    'RNBI_MANUFAC_HC_BASKET_TRACKING',\n",
+        "    'RNBI_MANUFACTURING_RxSR_RxMFGOA',\n",
+        "    'RNBI_MANUFACTURING_V2',\n",
+        "    'DEFECTS_ANALYSIS',\n",
+        "    'HC_BASKET_TRACKING',\n",
+        "    'EMFitting',\n",
+        "    'PCKG',\n",
+        "    'fcsd_dashboard'\n",
+        ")\n",
+        "  GROUP BY user, application_name, start_datetime\n",
+        "),\n",
+        "deduped AS (\n",
+        "  SELECT\n",
+        "    g.application_name,\n",
+        "    g.start_datetime,\n",
+        "    TO_TIMESTAMP(g.start_datetime, 'yyyy/MM/dd HH:mm:ss') AS start_ts,\n",
+        "    COALESCE(g.user, 'Unknown') AS user,\n",
+        "    g.event_duration_seconds,\n",
+        "    g.region,\n",
+        "    g.event_type,\n",
+        "    g.object,\n",
+        "    g.top_level_folder,\n",
+        "    CASE\n",
+        "      WHEN lc.lab_count > 1 THEN 'Multi-lab-access'\n",
+        "      ELSE lc.single_lab_name\n",
+        "    END AS lab_name,\n",
+        "    ROW_NUMBER() OVER (\n",
+        "      PARTITION BY g.user, g.application_name, g.start_datetime\n",
+        "      ORDER BY g.lab_name\n",
+        "    ) AS rn\n",
+        "  FROM workspace.gold.user_lab_application_gold g\n",
+        "  JOIN lab_counts lc\n",
+        "    ON g.user = lc.user\n",
+        "    AND g.application_name = lc.application_name\n",
+        "    AND g.start_datetime = lc.start_datetime\n",
+        "  WHERE g.application_name IN (\n",
+        "    'RNBI_AEL_BCP_ANALYSIS',\n",
+        "    'RNBI_BUDGET_FORECAST_V2',\n",
+        "    'RNBI_LEADTIME',\n",
+        "    'RNBI_MANUFAC_DEFECTS_ANALYSIS',\n",
+        "    'RNBI_MANUFAC_EMFitting',\n",
+        "    'RNBI_MANUFAC_HC_BASKET_TRACKING',\n",
+        "    'RNBI_MANUFACTURING_RxSR_RxMFGOA',\n",
+        "    'RNBI_MANUFACTURING_V2',\n",
+        "    'DEFECTS_ANALYSIS',\n",
+        "    'HC_BASKET_TRACKING',\n",
+        "    'EMFitting',\n",
+        "    'PCKG',\n",
+        "    'fcsd_dashboard'\n",
+        ")\n",
+        ")\n",
+        "SELECT\n",
+        "  CASE\n",
+        "    WHEN application_name = 'RNBI_MANUFACTURING_V2' THEN 'Optical Analysis'\n",
+        "    WHEN application_name = 'RNBI_MANUFACTURING_RxSR_RxMFGOA' THEN 'Servicerate Analysis/Order Analysis'\n",
+        "    WHEN application_name LIKE 'RNBI_MANUFAC_%' THEN REGEXP_REPLACE(application_name, '^RNBI_MANUFAC_', '')\n",
+        "    WHEN application_name LIKE 'RNBI%' THEN REGEXP_REPLACE(application_name, '^RNBI_?', '')\n",
+        "    ELSE application_name\n",
+        "  END AS application_name,\n",
+        "  DATE_TRUNC('month', start_ts) AS usage_month,\n",
+        "  DATE(TO_TIMESTAMP(start_datetime, 'yyyy/MM/dd HH:mm:ss')) AS usage_date,\n",
+        "  COUNT(*) AS usage_events\n",
+        "FROM deduped\n",
+        "WHERE rn = 1\n",
+        "GROUP BY\n",
+        "  CASE\n",
+        "    WHEN application_name = 'RNBI_MANUFACTURING_V2' THEN 'Optical Analysis'\n",
+        "    WHEN application_name = 'RNBI_MANUFACTURING_RxSR_RxMFGOA' THEN 'Servicerate Analysis/Order Analysis'\n",
+        "    WHEN application_name LIKE 'RNBI_MANUFAC_%' THEN REGEXP_REPLACE(application_name, '^RNBI_MANUFAC_', '')\n",
+        "    WHEN application_name LIKE 'RNBI%' THEN REGEXP_REPLACE(application_name, '^RNBI_?', '')\n",
+        "    ELSE application_name\n",
+        "  END,\n",
+        "  DATE_TRUNC('month', start_ts),\n",
+        "  DATE(TO_TIMESTAMP(start_datetime, 'yyyy/MM/dd HH:mm:ss'))\n",
+        "ORDER BY usage_date"
+      ]
+    },
+    {
+      "name": "fccd3e9f",
+      "displayName": "trend_monthly_usage",
+      "queryLines": [
+        "WITH lab_counts AS (\n",
+        "  SELECT\n",
+        "    user,\n",
+        "    application_name,\n",
+        "    start_datetime,\n",
+        "    COUNT(DISTINCT lab_name) AS lab_count,\n",
+        "    MAX(lab_name) AS single_lab_name\n",
+        "  FROM workspace.gold.user_lab_application_gold\n",
+        "  WHERE application_name IN (\n",
+        "    'RNBI_AEL_BCP_ANALYSIS',\n",
+        "    'RNBI_BUDGET_FORECAST_V2',\n",
+        "    'RNBI_LEADTIME',\n",
+        "    'RNBI_MANUFAC_DEFECTS_ANALYSIS',\n",
+        "    'RNBI_MANUFAC_EMFitting',\n",
+        "    'RNBI_MANUFAC_HC_BASKET_TRACKING',\n",
+        "    'RNBI_MANUFACTURING_RxSR_RxMFGOA',\n",
+        "    'RNBI_MANUFACTURING_V2',\n",
+        "    'DEFECTS_ANALYSIS',\n",
+        "    'HC_BASKET_TRACKING',\n",
+        "    'EMFitting',\n",
+        "    'PCKG',\n",
+        "    'fcsd_dashboard'\n",
+        ")\n",
+        "  GROUP BY user, application_name, start_datetime\n",
+        "),\n",
+        "deduped AS (\n",
+        "  SELECT\n",
+        "    g.application_name,\n",
+        "    g.start_datetime,\n",
+        "    TO_TIMESTAMP(g.start_datetime, 'yyyy/MM/dd HH:mm:ss') AS start_ts,\n",
+        "    COALESCE(g.user, 'Unknown') AS user,\n",
+        "    g.event_duration_seconds,\n",
+        "    g.region,\n",
+        "    g.event_type,\n",
+        "    g.object,\n",
+        "    g.top_level_folder,\n",
+        "    CASE\n",
+        "      WHEN lc.lab_count > 1 THEN 'Multi-lab-access'\n",
+        "      ELSE lc.single_lab_name\n",
+        "    END AS lab_name,\n",
+        "    ROW_NUMBER() OVER (\n",
+        "      PARTITION BY g.user, g.application_name, g.start_datetime\n",
+        "      ORDER BY g.lab_name\n",
+        "    ) AS rn\n",
+        "  FROM workspace.gold.user_lab_application_gold g\n",
+        "  JOIN lab_counts lc\n",
+        "    ON g.user = lc.user\n",
+        "    AND g.application_name = lc.application_name\n",
+        "    AND g.start_datetime = lc.start_datetime\n",
+        "  WHERE g.application_name IN (\n",
+        "    'RNBI_AEL_BCP_ANALYSIS',\n",
+        "    'RNBI_BUDGET_FORECAST_V2',\n",
+        "    'RNBI_LEADTIME',\n",
+        "    'RNBI_MANUFAC_DEFECTS_ANALYSIS',\n",
+        "    'RNBI_MANUFAC_EMFitting',\n",
+        "    'RNBI_MANUFAC_HC_BASKET_TRACKING',\n",
+        "    'RNBI_MANUFACTURING_RxSR_RxMFGOA',\n",
+        "    'RNBI_MANUFACTURING_V2',\n",
+        "    'DEFECTS_ANALYSIS',\n",
+        "    'HC_BASKET_TRACKING',\n",
+        "    'EMFitting',\n",
+        "    'PCKG',\n",
+        "    'fcsd_dashboard'\n",
+        ")\n",
+        ")\n",
+        "SELECT\n",
+        "  CASE\n",
+        "    WHEN application_name = 'RNBI_MANUFACTURING_V2' THEN 'Optical Analysis'\n",
+        "    WHEN application_name = 'RNBI_MANUFACTURING_RxSR_RxMFGOA' THEN 'Servicerate Analysis/Order Analysis'\n",
+        "    WHEN application_name LIKE 'RNBI_MANUFAC_%' THEN REGEXP_REPLACE(application_name, '^RNBI_MANUFAC_', '')\n",
+        "    WHEN application_name LIKE 'RNBI%' THEN REGEXP_REPLACE(application_name, '^RNBI_?', '')\n",
+        "    ELSE application_name\n",
+        "  END AS application_name,\n",
+        "  DATE_TRUNC('month', start_ts) AS usage_month,\n",
+        "  COUNT(*) AS usage_events\n",
+        "FROM deduped\n",
+        "WHERE rn = 1\n",
+        "GROUP BY\n",
+        "  CASE\n",
+        "    WHEN application_name = 'RNBI_MANUFACTURING_V2' THEN 'Optical Analysis'\n",
+        "    WHEN application_name = 'RNBI_MANUFACTURING_RxSR_RxMFGOA' THEN 'Servicerate Analysis/Order Analysis'\n",
+        "    WHEN application_name LIKE 'RNBI_MANUFAC_%' THEN REGEXP_REPLACE(application_name, '^RNBI_MANUFAC_', '')\n",
+        "    WHEN application_name LIKE 'RNBI%' THEN REGEXP_REPLACE(application_name, '^RNBI_?', '')\n",
+        "    ELSE application_name\n",
+        "  END,\n",
+        "  DATE_TRUNC('month', start_ts)\n",
+        "ORDER BY usage_month"
+      ]
+    },
+    {
+      "name": "b6ed868b",
+      "displayName": "usage_by_lab",
+      "queryLines": [
+        "WITH lab_counts AS (\n",
+        "  SELECT\n",
+        "    user,\n",
+        "    application_name,\n",
+        "    start_datetime,\n",
+        "    COUNT(DISTINCT lab_name) AS lab_count,\n",
+        "    MAX(lab_name) AS single_lab_name\n",
+        "  FROM workspace.gold.user_lab_application_gold\n",
+        "  WHERE application_name IN (\n",
+        "    'RNBI_AEL_BCP_ANALYSIS',\n",
+        "    'RNBI_BUDGET_FORECAST_V2',\n",
+        "    'RNBI_LEADTIME',\n",
+        "    'RNBI_MANUFAC_DEFECTS_ANALYSIS',\n",
+        "    'RNBI_MANUFAC_EMFitting',\n",
+        "    'RNBI_MANUFAC_HC_BASKET_TRACKING',\n",
+        "    'RNBI_MANUFACTURING_RxSR_RxMFGOA',\n",
+        "    'RNBI_MANUFACTURING_V2',\n",
+        "    'DEFECTS_ANALYSIS',\n",
+        "    'HC_BASKET_TRACKING',\n",
+        "    'EMFitting',\n",
+        "    'PCKG',\n",
+        "    'fcsd_dashboard'\n",
+        ")\n",
+        "  GROUP BY user, application_name, start_datetime\n",
+        "),\n",
+        "deduped AS (\n",
+        "  SELECT\n",
+        "    g.application_name,\n",
+        "    g.start_datetime,\n",
+        "    TO_TIMESTAMP(g.start_datetime, 'yyyy/MM/dd HH:mm:ss') AS start_ts,\n",
+        "    COALESCE(g.user, 'Unknown') AS user,\n",
+        "    g.event_duration_seconds,\n",
+        "    g.region,\n",
+        "    g.event_type,\n",
+        "    g.object,\n",
+        "    g.top_level_folder,\n",
+        "    CASE\n",
+        "      WHEN lc.lab_count > 1 THEN 'Multi-lab-access'\n",
+        "      ELSE lc.single_lab_name\n",
+        "    END AS lab_name,\n",
+        "    ROW_NUMBER() OVER (\n",
+        "      PARTITION BY g.user, g.application_name, g.start_datetime\n",
+        "      ORDER BY g.lab_name\n",
+        "    ) AS rn\n",
+        "  FROM workspace.gold.user_lab_application_gold g\n",
+        "  JOIN lab_counts lc\n",
+        "    ON g.user = lc.user\n",
+        "    AND g.application_name = lc.application_name\n",
+        "    AND g.start_datetime = lc.start_datetime\n",
+        "  WHERE g.application_name IN (\n",
+        "    'RNBI_AEL_BCP_ANALYSIS',\n",
+        "    'RNBI_BUDGET_FORECAST_V2',\n",
+        "    'RNBI_LEADTIME',\n",
+        "    'RNBI_MANUFAC_DEFECTS_ANALYSIS',\n",
+        "    'RNBI_MANUFAC_EMFitting',\n",
+        "    'RNBI_MANUFAC_HC_BASKET_TRACKING',\n",
+        "    'RNBI_MANUFACTURING_RxSR_RxMFGOA',\n",
+        "    'RNBI_MANUFACTURING_V2',\n",
+        "    'DEFECTS_ANALYSIS',\n",
+        "    'HC_BASKET_TRACKING',\n",
+        "    'EMFitting',\n",
+        "    'PCKG',\n",
+        "    'fcsd_dashboard'\n",
+        ")\n",
+        ")\n",
+        "SELECT\n",
+        "  CASE\n",
+        "    WHEN application_name = 'RNBI_MANUFACTURING_V2' THEN 'Optical Analysis'\n",
+        "    WHEN application_name = 'RNBI_MANUFACTURING_RxSR_RxMFGOA' THEN 'Servicerate Analysis/Order Analysis'\n",
+        "    WHEN application_name LIKE 'RNBI_MANUFAC_%' THEN REGEXP_REPLACE(application_name, '^RNBI_MANUFAC_', '')\n",
+        "    WHEN application_name LIKE 'RNBI%' THEN REGEXP_REPLACE(application_name, '^RNBI_?', '')\n",
+        "    ELSE application_name\n",
+        "  END AS application_name,\n",
+        "  DATE_TRUNC('month', start_ts) AS usage_month,\n",
+        "  COALESCE(lab_name, 'Unknown') AS lab_name,\n",
+        "  user AS user_name,\n",
+        "  COUNT(*) AS usage_events\n",
+        "FROM deduped\n",
+        "WHERE rn = 1\n",
+        "GROUP BY\n",
+        "  CASE\n",
+        "    WHEN application_name = 'RNBI_MANUFACTURING_V2' THEN 'Optical Analysis'\n",
+        "    WHEN application_name = 'RNBI_MANUFACTURING_RxSR_RxMFGOA' THEN 'Servicerate Analysis/Order Analysis'\n",
+        "    WHEN application_name LIKE 'RNBI_MANUFAC_%' THEN REGEXP_REPLACE(application_name, '^RNBI_MANUFAC_', '')\n",
+        "    WHEN application_name LIKE 'RNBI%' THEN REGEXP_REPLACE(application_name, '^RNBI_?', '')\n",
+        "    ELSE application_name\n",
+        "  END,\n",
+        "  DATE_TRUNC('month', start_ts),\n",
+        "  COALESCE(lab_name, 'Unknown'),\n",
+        "  user\n",
+        "ORDER BY usage_events DESC"
+      ]
+    },
+    {
+      "name": "a974f504",
+      "displayName": "usage_by_user",
+      "queryLines": [
+        "WITH lab_counts AS (\n",
+        "  SELECT\n",
+        "    user,\n",
+        "    application_name,\n",
+        "    start_datetime,\n",
+        "    COUNT(DISTINCT lab_name) AS lab_count,\n",
+        "    MAX(lab_name) AS single_lab_name\n",
+        "  FROM workspace.gold.user_lab_application_gold\n",
+        "  WHERE application_name IN (\n",
+        "    'RNBI_AEL_BCP_ANALYSIS',\n",
+        "    'RNBI_BUDGET_FORECAST_V2',\n",
+        "    'RNBI_LEADTIME',\n",
+        "    'RNBI_MANUFAC_DEFECTS_ANALYSIS',\n",
+        "    'RNBI_MANUFAC_EMFitting',\n",
+        "    'RNBI_MANUFAC_HC_BASKET_TRACKING',\n",
+        "    'RNBI_MANUFACTURING_RxSR_RxMFGOA',\n",
+        "    'RNBI_MANUFACTURING_V2',\n",
+        "    'DEFECTS_ANALYSIS',\n",
+        "    'HC_BASKET_TRACKING',\n",
+        "    'EMFitting',\n",
+        "    'PCKG',\n",
+        "    'fcsd_dashboard'\n",
+        "  )\n",
+        "  GROUP BY user, application_name, start_datetime\n",
+        "),\n",
+        "deduped AS (\n",
+        "  SELECT\n",
+        "    g.application_name,\n",
+        "    g.start_datetime,\n",
+        "    TO_TIMESTAMP(g.start_datetime, 'yyyy/MM/dd HH:mm:ss') AS start_ts,\n",
+        "    COALESCE(g.user, 'Unknown') AS user,\n",
+        "    g.event_duration_seconds,\n",
+        "    g.region,\n",
+        "    g.event_type,\n",
+        "    g.object,\n",
+        "    g.top_level_folder,\n",
+        "    CASE\n",
+        "      WHEN lc.lab_count > 1 THEN 'Multi-lab-access'\n",
+        "      ELSE lc.single_lab_name\n",
+        "    END AS lab_name,\n",
+        "    ROW_NUMBER() OVER (\n",
+        "      PARTITION BY g.user, g.application_name, g.start_datetime\n",
+        "      ORDER BY g.lab_name\n",
+        "    ) AS rn\n",
+        "  FROM workspace.gold.user_lab_application_gold g\n",
+        "  JOIN lab_counts lc\n",
+        "    ON g.user = lc.user\n",
+        "    AND g.application_name = lc.application_name\n",
+        "    AND g.start_datetime = lc.start_datetime\n",
+        "  WHERE g.application_name IN (\n",
+        "    'RNBI_AEL_BCP_ANALYSIS',\n",
+        "    'RNBI_BUDGET_FORECAST_V2',\n",
+        "    'RNBI_LEADTIME',\n",
+        "    'RNBI_MANUFAC_DEFECTS_ANALYSIS',\n",
+        "    'RNBI_MANUFAC_EMFitting',\n",
+        "    'RNBI_MANUFAC_HC_BASKET_TRACKING',\n",
+        "    'RNBI_MANUFACTURING_RxSR_RxMFGOA',\n",
+        "    'RNBI_MANUFACTURING_V2',\n",
+        "    'DEFECTS_ANALYSIS',\n",
+        "    'HC_BASKET_TRACKING',\n",
+        "    'EMFitting',\n",
+        "    'PCKG',\n",
+        "    'fcsd_dashboard'\n",
+        "  )\n",
+        "),\n",
+        "top_users AS (\n",
+        "  SELECT user AS user_name\n",
+        "  FROM deduped\n",
+        "  WHERE rn = 1 AND user IS NOT NULL\n",
+        "  GROUP BY user\n",
+        "  ORDER BY COUNT(*) DESC\n",
+        "  LIMIT 20\n",
+        ")\n",
+        "SELECT\n",
+        "  CASE\n",
+        "    WHEN application_name = 'RNBI_MANUFACTURING_V2' THEN 'Optical Analysis'\n",
+        "    WHEN application_name = 'RNBI_MANUFACTURING_RxSR_RxMFGOA' THEN 'Servicerate Analysis/Order Analysis'\n",
+        "    WHEN application_name LIKE 'RNBI_MANUFAC_%' THEN REGEXP_REPLACE(application_name, '^RNBI_MANUFAC_', '')\n",
+        "    WHEN application_name LIKE 'RNBI%' THEN REGEXP_REPLACE(application_name, '^RNBI_?', '')\n",
+        "    ELSE application_name\n",
+        "  END AS application_name,\n",
+        "  DATE_TRUNC('month', start_ts) AS usage_month,\n",
+        "  user AS user_name,\n",
+        "  lab_name,\n",
+        "  COUNT(*) AS usage_events\n",
+        "FROM deduped\n",
+        "WHERE rn = 1\n",
+        "  AND user IN (SELECT user_name FROM top_users)\n",
+        "GROUP BY\n",
+        "  CASE\n",
+        "    WHEN application_name = 'RNBI_MANUFACTURING_V2' THEN 'Optical Analysis'\n",
+        "    WHEN application_name = 'RNBI_MANUFACTURING_RxSR_RxMFGOA' THEN 'Servicerate Analysis/Order Analysis'\n",
+        "    WHEN application_name LIKE 'RNBI_MANUFAC_%' THEN REGEXP_REPLACE(application_name, '^RNBI_MANUFAC_', '')\n",
+        "    WHEN application_name LIKE 'RNBI%' THEN REGEXP_REPLACE(application_name, '^RNBI_?', '')\n",
+        "    ELSE application_name\n",
+        "  END,\n",
+        "  DATE_TRUNC('month', start_ts),\n",
+        "  user,\n",
+        "  lab_name\n",
+        "ORDER BY usage_events DESC"
+      ]
+    },
+    {
+      "name": "f7eb53e5",
+      "displayName": "usage_by_object",
+      "queryLines": [
+        "SELECT\r\n",
+        "  COALESCE(object, 'Unknown') AS object_name,\r\n",
+        "  COUNT(*) AS usage_events\r\n",
+        "FROM workspace.gold.defects_user_lab_gold\r\n",
+        "GROUP BY COALESCE(object, 'Unknown')\r\n",
+        "ORDER BY usage_events DESC\r\n",
+        "LIMIT 15"
+      ]
+    },
+    {
+      "name": "702b4007",
+      "displayName": "usage_by_folder",
+      "queryLines": [
+        "WITH lab_counts AS (\n",
+        "  SELECT\n",
+        "    user,\n",
+        "    application_name,\n",
+        "    start_datetime,\n",
+        "    COUNT(DISTINCT lab_name) AS lab_count,\n",
+        "    MAX(lab_name) AS single_lab_name\n",
+        "  FROM workspace.gold.user_lab_application_gold\n",
+        "  WHERE application_name IN (\n",
+        "    'RNBI_AEL_BCP_ANALYSIS',\n",
+        "    'RNBI_BUDGET_FORECAST_V2',\n",
+        "    'RNBI_LEADTIME',\n",
+        "    'RNBI_MANUFAC_DEFECTS_ANALYSIS',\n",
+        "    'RNBI_MANUFAC_EMFitting',\n",
+        "    'RNBI_MANUFAC_HC_BASKET_TRACKING',\n",
+        "    'RNBI_MANUFACTURING_RxSR_RxMFGOA',\n",
+        "    'RNBI_MANUFACTURING_V2',\n",
+        "    'DEFECTS_ANALYSIS',\n",
+        "    'HC_BASKET_TRACKING',\n",
+        "    'EMFitting',\n",
+        "    'PCKG',\n",
+        "    'fcsd_dashboard'\n",
+        ")\n",
+        "  GROUP BY user, application_name, start_datetime\n",
+        "),\n",
+        "deduped AS (\n",
+        "  SELECT\n",
+        "    g.application_name,\n",
+        "    g.start_datetime,\n",
+        "    TO_TIMESTAMP(g.start_datetime, 'yyyy/MM/dd HH:mm:ss') AS start_ts,\n",
+        "    COALESCE(g.user, 'Unknown') AS user,\n",
+        "    g.event_duration_seconds,\n",
+        "    g.region,\n",
+        "    g.event_type,\n",
+        "    g.object,\n",
+        "    g.top_level_folder,\n",
+        "    CASE\n",
+        "      WHEN lc.lab_count > 1 THEN 'Multi-lab-access'\n",
+        "      ELSE lc.single_lab_name\n",
+        "    END AS lab_name,\n",
+        "    ROW_NUMBER() OVER (\n",
+        "      PARTITION BY g.user, g.application_name, g.start_datetime\n",
+        "      ORDER BY g.lab_name\n",
+        "    ) AS rn\n",
+        "  FROM workspace.gold.user_lab_application_gold g\n",
+        "  JOIN lab_counts lc\n",
+        "    ON g.user = lc.user\n",
+        "    AND g.application_name = lc.application_name\n",
+        "    AND g.start_datetime = lc.start_datetime\n",
+        "  WHERE g.application_name IN (\n",
+        "    'RNBI_AEL_BCP_ANALYSIS',\n",
+        "    'RNBI_BUDGET_FORECAST_V2',\n",
+        "    'RNBI_LEADTIME',\n",
+        "    'RNBI_MANUFAC_DEFECTS_ANALYSIS',\n",
+        "    'RNBI_MANUFAC_EMFitting',\n",
+        "    'RNBI_MANUFAC_HC_BASKET_TRACKING',\n",
+        "    'RNBI_MANUFACTURING_RxSR_RxMFGOA',\n",
+        "    'RNBI_MANUFACTURING_V2',\n",
+        "    'DEFECTS_ANALYSIS',\n",
+        "    'HC_BASKET_TRACKING',\n",
+        "    'EMFitting',\n",
+        "    'PCKG',\n",
+        "    'fcsd_dashboard'\n",
+        ")\n",
+        ")\n",
+        "SELECT\n",
+        "  CASE\n",
+        "    WHEN application_name = 'RNBI_MANUFACTURING_V2' THEN 'Optical Analysis'\n",
+        "    WHEN application_name = 'RNBI_MANUFACTURING_RxSR_RxMFGOA' THEN 'Servicerate Analysis/Order Analysis'\n",
+        "    WHEN application_name LIKE 'RNBI_MANUFAC_%' THEN REGEXP_REPLACE(application_name, '^RNBI_MANUFAC_', '')\n",
+        "    WHEN application_name LIKE 'RNBI%' THEN REGEXP_REPLACE(application_name, '^RNBI_?', '')\n",
+        "    ELSE application_name\n",
+        "  END AS application_name,\n",
+        "  DATE_TRUNC('month', start_ts) AS usage_month,\n",
+        "  COALESCE(top_level_folder, 'Unknown') AS folder_name,\n",
+        "  COUNT(*) AS usage_events\n",
+        "FROM deduped\n",
+        "WHERE rn = 1\n",
+        "GROUP BY\n",
+        "  CASE\n",
+        "    WHEN application_name = 'RNBI_MANUFACTURING_V2' THEN 'Optical Analysis'\n",
+        "    WHEN application_name = 'RNBI_MANUFACTURING_RxSR_RxMFGOA' THEN 'Servicerate Analysis/Order Analysis'\n",
+        "    WHEN application_name LIKE 'RNBI_MANUFAC_%' THEN REGEXP_REPLACE(application_name, '^RNBI_MANUFAC_', '')\n",
+        "    WHEN application_name LIKE 'RNBI%' THEN REGEXP_REPLACE(application_name, '^RNBI_?', '')\n",
+        "    ELSE application_name\n",
+        "  END,\n",
+        "  DATE_TRUNC('month', start_ts),\n",
+        "  COALESCE(top_level_folder, 'Unknown')\n",
+        "ORDER BY usage_events DESC"
+      ]
+    },
+    {
+      "name": "b1486a9d",
+      "displayName": "usage_by_event_type",
+      "queryLines": [
+        "SELECT\r\n",
+        "  COALESCE(event_type, 'Unknown') AS event_type,\r\n",
+        "  COUNT(*) AS usage_events\r\n",
+        "FROM workspace.gold.defects_user_lab_gold\r\n",
+        "GROUP BY COALESCE(event_type, 'Unknown')\r\n",
+        "ORDER BY usage_events DESC"
+      ]
+    },
+    {
+      "name": "21cd0301",
+      "displayName": "activity_details",
+      "queryLines": [
+        "WITH lab_counts AS (\n",
+        "  SELECT\n",
+        "    user,\n",
+        "    application_name,\n",
+        "    start_datetime,\n",
+        "    COUNT(DISTINCT lab_name) AS lab_count,\n",
+        "    MAX(lab_name) AS single_lab_name\n",
+        "  FROM workspace.gold.user_lab_application_gold\n",
+        "  WHERE application_name IN (\n",
+        "    'RNBI_AEL_BCP_ANALYSIS',\n",
+        "    'RNBI_BUDGET_FORECAST_V2',\n",
+        "    'RNBI_LEADTIME',\n",
+        "    'RNBI_MANUFAC_DEFECTS_ANALYSIS',\n",
+        "    'RNBI_MANUFAC_EMFitting',\n",
+        "    'RNBI_MANUFAC_HC_BASKET_TRACKING',\n",
+        "    'RNBI_MANUFACTURING_RxSR_RxMFGOA',\n",
+        "    'RNBI_MANUFACTURING_V2',\n",
+        "    'DEFECTS_ANALYSIS',\n",
+        "    'HC_BASKET_TRACKING',\n",
+        "    'EMFitting',\n",
+        "    'PCKG',\n",
+        "    'fcsd_dashboard'\n",
+        ")\n",
+        "  GROUP BY user, application_name, start_datetime\n",
+        "),\n",
+        "deduped AS (\n",
+        "  SELECT\n",
+        "    g.application_name,\n",
+        "    g.start_datetime,\n",
+        "    TO_TIMESTAMP(g.start_datetime, 'yyyy/MM/dd HH:mm:ss') AS start_ts,\n",
+        "    COALESCE(g.user, 'Unknown') AS user,\n",
+        "    g.event_duration_seconds,\n",
+        "    g.region,\n",
+        "    g.event_type,\n",
+        "    g.object,\n",
+        "    g.top_level_folder,\n",
+        "    CASE\n",
+        "      WHEN lc.lab_count > 1 THEN 'Multi-lab-access'\n",
+        "      ELSE lc.single_lab_name\n",
+        "    END AS lab_name,\n",
+        "    ROW_NUMBER() OVER (\n",
+        "      PARTITION BY g.user, g.application_name, g.start_datetime\n",
+        "      ORDER BY g.lab_name\n",
+        "    ) AS rn\n",
+        "  FROM workspace.gold.user_lab_application_gold g\n",
+        "  JOIN lab_counts lc\n",
+        "    ON g.user = lc.user\n",
+        "    AND g.application_name = lc.application_name\n",
+        "    AND g.start_datetime = lc.start_datetime\n",
+        "  WHERE g.application_name IN (\n",
+        "    'RNBI_AEL_BCP_ANALYSIS',\n",
+        "    'RNBI_BUDGET_FORECAST_V2',\n",
+        "    'RNBI_LEADTIME',\n",
+        "    'RNBI_MANUFAC_DEFECTS_ANALYSIS',\n",
+        "    'RNBI_MANUFAC_EMFitting',\n",
+        "    'RNBI_MANUFAC_HC_BASKET_TRACKING',\n",
+        "    'RNBI_MANUFACTURING_RxSR_RxMFGOA',\n",
+        "    'RNBI_MANUFACTURING_V2',\n",
+        "    'DEFECTS_ANALYSIS',\n",
+        "    'HC_BASKET_TRACKING',\n",
+        "    'EMFitting',\n",
+        "    'PCKG',\n",
+        "    'fcsd_dashboard'\n",
+        ")\n",
+        ")\n",
+        "SELECT\n",
+        "  CASE\n",
+        "    WHEN application_name = 'RNBI_MANUFACTURING_V2' THEN 'Optical Analysis'\n",
+        "    WHEN application_name = 'RNBI_MANUFACTURING_RxSR_RxMFGOA' THEN 'Servicerate Analysis/Order Analysis'\n",
+        "    WHEN application_name LIKE 'RNBI_MANUFAC_%' THEN REGEXP_REPLACE(application_name, '^RNBI_MANUFAC_', '')\n",
+        "    WHEN application_name LIKE 'RNBI%' THEN REGEXP_REPLACE(application_name, '^RNBI_?', '')\n",
+        "    ELSE application_name\n",
+        "  END AS application_name,\n",
+        "  DATE_TRUNC('month', start_ts) AS usage_month,\n",
+        "  DATE(TO_TIMESTAMP(start_datetime, 'yyyy/MM/dd HH:mm:ss')) AS usage_date,\n",
+        "  start_datetime,\n",
+        "  user AS user_name,\n",
+        "  COALESCE(lab_name, 'Unknown') AS lab_name,\n",
+        "  COALESCE(region, 'Unknown') AS region,\n",
+        "  COALESCE(event_type, 'Unknown') AS event_type,\n",
+        "  COALESCE(object, 'Unknown') AS object_name,\n",
+        "  COALESCE(top_level_folder, 'Unknown') AS folder_name,\n",
+        "  ROUND(event_duration_seconds / 60.0, 2) AS session_minutes\n",
+        "FROM deduped\n",
+        "WHERE rn = 1\n",
+        "ORDER BY start_ts DESC"
+      ]
+    },
+    {
+      "name": "e3f7a901",
+      "displayName": "unknown_lab_users",
+      "queryLines": [
+        "WITH lab_counts AS (\n",
+        "  SELECT\n",
+        "    user,\n",
+        "    application_name,\n",
+        "    start_datetime,\n",
+        "    COUNT(DISTINCT lab_name) AS lab_count,\n",
+        "    MAX(lab_name) AS single_lab_name\n",
+        "  FROM workspace.gold.user_lab_application_gold\n",
+        "  WHERE application_name IN (\n",
+        "    'RNBI_AEL_BCP_ANALYSIS',\n",
+        "    'RNBI_BUDGET_FORECAST_V2',\n",
+        "    'RNBI_LEADTIME',\n",
+        "    'RNBI_MANUFAC_DEFECTS_ANALYSIS',\n",
+        "    'RNBI_MANUFAC_EMFitting',\n",
+        "    'RNBI_MANUFAC_HC_BASKET_TRACKING',\n",
+        "    'RNBI_MANUFACTURING_RxSR_RxMFGOA',\n",
+        "    'RNBI_MANUFACTURING_V2',\n",
+        "    'DEFECTS_ANALYSIS',\n",
+        "    'HC_BASKET_TRACKING',\n",
+        "    'EMFitting',\n",
+        "    'PCKG',\n",
+        "    'fcsd_dashboard'\n",
+        ")\n",
+        "  GROUP BY user, application_name, start_datetime\n",
+        "),\n",
+        "deduped AS (\n",
+        "  SELECT\n",
+        "    g.application_name,\n",
+        "    g.start_datetime,\n",
+        "    TO_TIMESTAMP(g.start_datetime, 'yyyy/MM/dd HH:mm:ss') AS start_ts,\n",
+        "    COALESCE(g.user, 'Unknown') AS user,\n",
+        "    g.event_duration_seconds,\n",
+        "    g.region,\n",
+        "    g.event_type,\n",
+        "    g.object,\n",
+        "    g.top_level_folder,\n",
+        "    CASE\n",
+        "      WHEN lc.lab_count > 1 THEN 'Multi-lab-access'\n",
+        "      ELSE lc.single_lab_name\n",
+        "    END AS lab_name,\n",
+        "    ROW_NUMBER() OVER (\n",
+        "      PARTITION BY g.user, g.application_name, g.start_datetime\n",
+        "      ORDER BY g.lab_name\n",
+        "    ) AS rn\n",
+        "  FROM workspace.gold.user_lab_application_gold g\n",
+        "  JOIN lab_counts lc\n",
+        "    ON g.user = lc.user\n",
+        "    AND g.application_name = lc.application_name\n",
+        "    AND g.start_datetime = lc.start_datetime\n",
+        "  WHERE g.application_name IN (\n",
+        "    'RNBI_AEL_BCP_ANALYSIS',\n",
+        "    'RNBI_BUDGET_FORECAST_V2',\n",
+        "    'RNBI_LEADTIME',\n",
+        "    'RNBI_MANUFAC_DEFECTS_ANALYSIS',\n",
+        "    'RNBI_MANUFAC_EMFitting',\n",
+        "    'RNBI_MANUFAC_HC_BASKET_TRACKING',\n",
+        "    'RNBI_MANUFACTURING_RxSR_RxMFGOA',\n",
+        "    'RNBI_MANUFACTURING_V2',\n",
+        "    'DEFECTS_ANALYSIS',\n",
+        "    'HC_BASKET_TRACKING',\n",
+        "    'EMFitting',\n",
+        "    'PCKG',\n",
+        "    'fcsd_dashboard'\n",
+        ")\n",
+        ")\n",
+        "SELECT\n",
+        "  user AS user_name,\n",
+        "  CASE\n",
+        "    WHEN application_name = 'RNBI_MANUFACTURING_V2' THEN 'Optical Analysis'\n",
+        "    WHEN application_name = 'RNBI_MANUFACTURING_RxSR_RxMFGOA' THEN 'Servicerate Analysis/Order Analysis'\n",
+        "    WHEN application_name LIKE 'RNBI_MANUFAC_%' THEN REGEXP_REPLACE(application_name, '^RNBI_MANUFAC_', '')\n",
+        "    WHEN application_name LIKE 'RNBI%' THEN REGEXP_REPLACE(application_name, '^RNBI_?', '')\n",
+        "    ELSE application_name\n",
+        "  END AS application_name,\n",
+        "  DATE_TRUNC('month', start_ts) AS usage_month,\n",
+        "  COUNT(*) AS usage_events\n",
+        "FROM deduped\n",
+        "WHERE rn = 1\n",
+        "  AND (lab_name IS NULL OR lab_name = 'Unknown')\n",
+        "GROUP BY\n",
+        "  user,\n",
+        "  CASE\n",
+        "    WHEN application_name = 'RNBI_MANUFACTURING_V2' THEN 'Optical Analysis'\n",
+        "    WHEN application_name = 'RNBI_MANUFACTURING_RxSR_RxMFGOA' THEN 'Servicerate Analysis/Order Analysis'\n",
+        "    WHEN application_name LIKE 'RNBI_MANUFAC_%' THEN REGEXP_REPLACE(application_name, '^RNBI_MANUFAC_', '')\n",
+        "    WHEN application_name LIKE 'RNBI%' THEN REGEXP_REPLACE(application_name, '^RNBI_?', '')\n",
+        "    ELSE application_name\n",
+        "  END,\n",
+        "  DATE_TRUNC('month', start_ts)\n",
+        "ORDER BY usage_events DESC"
+      ]
+    },
+    {
+      "name": "c1d2e3f4",
+      "displayName": "lab_usage_by_application",
+      "queryLines": [
+        "WITH lab_counts AS (\n",
+        "  SELECT\n",
+        "    user,\n",
+        "    application_name,\n",
+        "    start_datetime,\n",
+        "    COUNT(DISTINCT lab_name) AS lab_count,\n",
+        "    MAX(lab_name) AS single_lab_name\n",
+        "  FROM workspace.gold.user_lab_application_gold\n",
+        "  WHERE application_name IN (\n",
+        "    'RNBI_AEL_BCP_ANALYSIS',\n",
+        "    'RNBI_BUDGET_FORECAST_V2',\n",
+        "    'RNBI_LEADTIME',\n",
+        "    'RNBI_MANUFAC_DEFECTS_ANALYSIS',\n",
+        "    'RNBI_MANUFAC_EMFitting',\n",
+        "    'RNBI_MANUFAC_HC_BASKET_TRACKING',\n",
+        "    'RNBI_MANUFACTURING_RxSR_RxMFGOA',\n",
+        "    'RNBI_MANUFACTURING_V2',\n",
+        "    'DEFECTS_ANALYSIS',\n",
+        "    'HC_BASKET_TRACKING',\n",
+        "    'EMFitting',\n",
+        "    'PCKG',\n",
+        "    'fcsd_dashboard'\n",
+        "  )\n",
+        "  GROUP BY user, application_name, start_datetime\n",
+        "),\n",
+        "deduped AS (\n",
+        "  SELECT\n",
+        "    g.application_name,\n",
+        "    g.start_datetime,\n",
+        "    TO_TIMESTAMP(g.start_datetime, 'yyyy/MM/dd HH:mm:ss') AS start_ts,\n",
+        "    COALESCE(g.user, 'Unknown') AS user,\n",
+        "    g.event_duration_seconds,\n",
+        "    g.region,\n",
+        "    g.event_type,\n",
+        "    g.object,\n",
+        "    g.top_level_folder,\n",
+        "    CASE\n",
+        "      WHEN lc.lab_count > 1 THEN 'Multi-lab-access'\n",
+        "      ELSE lc.single_lab_name\n",
+        "    END AS lab_name,\n",
+        "    ROW_NUMBER() OVER (\n",
+        "      PARTITION BY g.user, g.application_name, g.start_datetime\n",
+        "      ORDER BY g.lab_name\n",
+        "    ) AS rn\n",
+        "  FROM workspace.gold.user_lab_application_gold g\n",
+        "  JOIN lab_counts lc\n",
+        "    ON g.user = lc.user\n",
+        "    AND g.application_name = lc.application_name\n",
+        "    AND g.start_datetime = lc.start_datetime\n",
+        "  WHERE g.application_name IN (\n",
+        "    'RNBI_AEL_BCP_ANALYSIS',\n",
+        "    'RNBI_BUDGET_FORECAST_V2',\n",
+        "    'RNBI_LEADTIME',\n",
+        "    'RNBI_MANUFAC_DEFECTS_ANALYSIS',\n",
+        "    'RNBI_MANUFAC_EMFitting',\n",
+        "    'RNBI_MANUFAC_HC_BASKET_TRACKING',\n",
+        "    'RNBI_MANUFACTURING_RxSR_RxMFGOA',\n",
+        "    'RNBI_MANUFACTURING_V2',\n",
+        "    'DEFECTS_ANALYSIS',\n",
+        "    'HC_BASKET_TRACKING',\n",
+        "    'EMFitting',\n",
+        "    'PCKG',\n",
+        "    'fcsd_dashboard'\n",
+        "  )\n",
+        ")\n",
+        "SELECT\n",
+        "  COALESCE(lab_name, 'Unknown') AS lab_name,\n",
+        "  CASE\n",
+        "    WHEN application_name = 'RNBI_MANUFACTURING_V2' THEN 'Optical Analysis'\n",
+        "    WHEN application_name = 'RNBI_MANUFACTURING_RxSR_RxMFGOA' THEN 'Servicerate Analysis/Order Analysis'\n",
+        "    WHEN application_name LIKE 'RNBI_MANUFAC_%' THEN REGEXP_REPLACE(application_name, '^RNBI_MANUFAC_', '')\n",
+        "    WHEN application_name LIKE 'RNBI%' THEN REGEXP_REPLACE(application_name, '^RNBI_?', '')\n",
+        "    ELSE application_name\n",
+        "  END AS application_name,\n",
+        "  DATE_TRUNC('month', start_ts) AS usage_month,\n",
+        "  COUNT(*) AS usage_events\n",
+        "FROM deduped\n",
+        "WHERE rn = 1\n",
+        "GROUP BY\n",
+        "  COALESCE(lab_name, 'Unknown'),\n",
+        "  CASE\n",
+        "    WHEN application_name = 'RNBI_MANUFACTURING_V2' THEN 'Optical Analysis'\n",
+        "    WHEN application_name = 'RNBI_MANUFACTURING_RxSR_RxMFGOA' THEN 'Servicerate Analysis/Order Analysis'\n",
+        "    WHEN application_name LIKE 'RNBI_MANUFAC_%' THEN REGEXP_REPLACE(application_name, '^RNBI_MANUFAC_', '')\n",
+        "    WHEN application_name LIKE 'RNBI%' THEN REGEXP_REPLACE(application_name, '^RNBI_?', '')\n",
+        "    ELSE application_name\n",
+        "  END,\n",
+        "  DATE_TRUNC('month', start_ts)\n",
+        "ORDER BY usage_month ASC, usage_events DESC"
+      ]
+    },
+    {
+      "name": "a1b2c3d4",
+      "displayName": "unknown_users_detail",
+      "queryLines": [
+        "WITH lab_counts AS (\n",
+        "  SELECT\n",
+        "    user,\n",
+        "    application_name,\n",
+        "    start_datetime,\n",
+        "    COUNT(DISTINCT lab_name) AS lab_count,\n",
+        "    MAX(lab_name) AS single_lab_name\n",
+        "  FROM workspace.gold.user_lab_application_gold\n",
+        "  WHERE application_name IN (\n",
+        "    'RNBI_AEL_BCP_ANALYSIS',\n",
+        "    'RNBI_BUDGET_FORECAST_V2',\n",
+        "    'RNBI_LEADTIME',\n",
+        "    'RNBI_MANUFAC_DEFECTS_ANALYSIS',\n",
+        "    'RNBI_MANUFAC_EMFitting',\n",
+        "    'RNBI_MANUFAC_HC_BASKET_TRACKING',\n",
+        "    'RNBI_MANUFACTURING_RxSR_RxMFGOA',\n",
+        "    'RNBI_MANUFACTURING_V2',\n",
+        "    'DEFECTS_ANALYSIS',\n",
+        "    'HC_BASKET_TRACKING',\n",
+        "    'EMFitting',\n",
+        "    'PCKG',\n",
+        "    'fcsd_dashboard'\n",
+        ")\n",
+        "  GROUP BY user, application_name, start_datetime\n",
+        "),\n",
+        "deduped AS (\n",
+        "  SELECT\n",
+        "    g.application_name,\n",
+        "    g.start_datetime,\n",
+        "    TO_TIMESTAMP(g.start_datetime, 'yyyy/MM/dd HH:mm:ss') AS start_ts,\n",
+        "    COALESCE(g.user, 'Unknown') AS user,\n",
+        "    CASE\n",
+        "      WHEN lc.lab_count > 1 THEN 'Multi-lab-access'\n",
+        "      ELSE lc.single_lab_name\n",
+        "    END AS lab_name,\n",
+        "    ROW_NUMBER() OVER (\n",
+        "      PARTITION BY g.user, g.application_name, g.start_datetime\n",
+        "      ORDER BY g.lab_name\n",
+        "    ) AS rn\n",
+        "  FROM workspace.gold.user_lab_application_gold g\n",
+        "  JOIN lab_counts lc\n",
+        "    ON g.user = lc.user\n",
+        "    AND g.application_name = lc.application_name\n",
+        "    AND g.start_datetime = lc.start_datetime\n",
+        "  WHERE g.application_name IN (\n",
+        "    'RNBI_AEL_BCP_ANALYSIS',\n",
+        "    'RNBI_BUDGET_FORECAST_V2',\n",
+        "    'RNBI_LEADTIME',\n",
+        "    'RNBI_MANUFAC_DEFECTS_ANALYSIS',\n",
+        "    'RNBI_MANUFAC_EMFitting',\n",
+        "    'RNBI_MANUFAC_HC_BASKET_TRACKING',\n",
+        "    'RNBI_MANUFACTURING_RxSR_RxMFGOA',\n",
+        "    'RNBI_MANUFACTURING_V2',\n",
+        "    'DEFECTS_ANALYSIS',\n",
+        "    'HC_BASKET_TRACKING',\n",
+        "    'EMFitting',\n",
+        "    'PCKG',\n",
+        "    'fcsd_dashboard'\n",
+        ")\n",
+        ")\n",
+        "SELECT\n",
+        "  user AS user_name,\n",
+        "  CASE\n",
+        "    WHEN application_name = 'RNBI_MANUFACTURING_V2' THEN 'Optical Analysis'\n",
+        "    WHEN application_name = 'RNBI_MANUFACTURING_RxSR_RxMFGOA' THEN 'Servicerate Analysis/Order Analysis'\n",
+        "    WHEN application_name LIKE 'RNBI_MANUFAC_%' THEN REGEXP_REPLACE(application_name, '^RNBI_MANUFAC_', '')\n",
+        "    WHEN application_name LIKE 'RNBI%' THEN REGEXP_REPLACE(application_name, '^RNBI_?', '')\n",
+        "    ELSE application_name\n",
+        "  END AS application_name,\n",
+        "  DATE_TRUNC('month', start_ts) AS usage_month,\n",
+        "  COUNT(*) AS usage_events\n",
+        "FROM deduped\n",
+        "WHERE rn = 1\n",
+        "  AND (lab_name IS NULL OR lab_name = 'Unknown')\n",
+        "GROUP BY\n",
+        "  user,\n",
+        "  CASE\n",
+        "    WHEN application_name = 'RNBI_MANUFACTURING_V2' THEN 'Optical Analysis'\n",
+        "    WHEN application_name = 'RNBI_MANUFACTURING_RxSR_RxMFGOA' THEN 'Servicerate Analysis/Order Analysis'\n",
+        "    WHEN application_name LIKE 'RNBI_MANUFAC_%' THEN REGEXP_REPLACE(application_name, '^RNBI_MANUFAC_', '')\n",
+        "    WHEN application_name LIKE 'RNBI%' THEN REGEXP_REPLACE(application_name, '^RNBI_?', '')\n",
+        "    ELSE application_name\n",
+        "  END,\n",
+        "  DATE_TRUNC('month', start_ts)\n",
+        "ORDER BY usage_events DESC"
+      ]
+    },
+    {
+      "name": "e5f6a7b8",
+      "displayName": "Multi-Lab User Access",
+      "queryLines": [
+        "-- Find users with same start_datetime but different lab_name values\n",
+        "SELECT\n",
+        "  COALESCE(user, 'Unknown') AS user_name,\n",
+        "  lab_name,\n",
+        "  COUNT(*) AS usage_events\n",
+        "FROM\n",
+        "  workspace.gold.user_lab_application_gold\n",
+        "WHERE\n",
+        "  application_name IN (\n",
+        "    'RNBI_AEL_BCP_ANALYSIS',\n",
+        "    'RNBI_BUDGET_FORECAST_V2',\n",
+        "    'RNBI_LEADTIME',\n",
+        "    'RNBI_MANUFAC_DEFECTS_ANALYSIS',\n",
+        "    'RNBI_MANUFAC_EMFitting',\n",
+        "    'RNBI_MANUFAC_HC_BASKET_TRACKING',\n",
+        "    'RNBI_MANUFACTURING_RxSR_RxMFGOA',\n",
+        "    'RNBI_MANUFACTURING_V2',\n",
+        "    'DEFECTS_ANALYSIS',\n",
+        "    'HC_BASKET_TRACKING',\n",
+        "    'EMFitting',\n",
+        "    'PCKG',\n",
+        "    'fcsd_dashboard'\n",
+        "  )\n",
+        "GROUP BY\n",
+        "  COALESCE(user, 'Unknown'),\n",
+        "  lab_name\n",
+        "HAVING\n",
+        "  COALESCE(user, 'Unknown') IN (\n",
+        "    -- Subquery: find users who have events with same start_datetime but different lab_name\n",
+        "    SELECT\n",
+        "      COALESCE(user, 'Unknown')\n",
+        "    FROM\n",
+        "      workspace.gold.user_lab_application_gold\n",
+        "    WHERE\n",
+        "      application_name IN (\n",
+        "        'RNBI_AEL_BCP_ANALYSIS',\n",
+        "        'RNBI_BUDGET_FORECAST_V2',\n",
+        "        'RNBI_LEADTIME',\n",
+        "        'RNBI_MANUFAC_DEFECTS_ANALYSIS',\n",
+        "        'RNBI_MANUFAC_EMFitting',\n",
+        "        'RNBI_MANUFAC_HC_BASKET_TRACKING',\n",
+        "        'RNBI_MANUFACTURING_RxSR_RxMFGOA',\n",
+        "        'RNBI_MANUFACTURING_V2',\n",
+        "        'DEFECTS_ANALYSIS',\n",
+        "        'HC_BASKET_TRACKING',\n",
+        "        'EMFitting',\n",
+        "        'PCKG',\n",
+        "        'fcsd_dashboard'\n",
+        "      )\n",
+        "    GROUP BY\n",
+        "      COALESCE(user, 'Unknown'),\n",
+        "      application_name,\n",
+        "      start_datetime\n",
+        "    HAVING\n",
+        "      COUNT(DISTINCT lab_name) > 1\n",
+        "  )\n",
+        "ORDER BY\n",
+        "  user_name,\n",
+        "  usage_events DESC"
+      ]
+    },
+    {
+      "name": "debug_multilab_check",
+      "displayName": "Debug Multi-Lab Check",
+      "queryLines": [
+        "select * from workspace.gold.user_lab_application_gold \r\n",
+        "where user =\"KITISAKP\";"
+      ]
+    }
+  ],
+  "pages": [
+    {
+      "name": "dfa916d9",
+      "displayName": "Application Usage Overview",
+      "layout": [
+        {
+          "widget": {
+            "name": "total-usage-events",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "4c824b19",
+                  "fields": [
+                    {
+                      "name": "sum(total_usage_events)",
+                      "expression": "SUM(`total_usage_events`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "showTitle": true,
+                "title": "Total Usage ",
+                "headerAlignment": "center"
+              },
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "sum(total_usage_events)",
+                  "format": {
+                    "type": "number-plain",
+                    "abbreviation": "none",
+                    "decimalPlaces": {
+                      "type": "max",
+                      "places": 2
+                    },
+                    "significantFigures": {
+                      "type": "exact",
+                      "figures": 3
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 2,
+            "width": 4,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "active-users",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "7b5d62c3",
+                  "fields": [
+                    {
+                      "name": "sum(active_users)",
+                      "expression": "SUM(`active_users`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "showTitle": true,
+                "title": "Active Users",
+                "headerAlignment": "center"
+              },
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "sum(active_users)",
+                  "format": {
+                    "type": "number-plain",
+                    "abbreviation": "none",
+                    "decimalPlaces": {
+                      "type": "max",
+                      "places": 2
+                    },
+                    "significantFigures": {
+                      "type": "exact",
+                      "figures": 3
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "position": {
+            "x": 4,
+            "y": 2,
+            "width": 4,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "active-labs",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "87abe982",
+                  "fields": [
+                    {
+                      "name": "active_labs",
+                      "expression": "`active_labs`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "showTitle": true,
+                "title": "Active Labs",
+                "headerAlignment": "center"
+              },
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "active_labs"
+                }
+              }
+            }
+          },
+          "position": {
+            "x": 9,
+            "y": 3,
+            "width": 3,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "total-hours-usage",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "d6499ecc",
+                  "fields": [
+                    {
+                      "name": "sum(total_hours_spent)",
+                      "expression": "SUM(`total_hours_spent`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "showTitle": true,
+                "title": "Usage Hours",
+                "showDescription": false,
+                "headerAlignment": "center"
+              },
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "sum(total_hours_spent)",
+                  "format": {
+                    "type": "number-plain",
+                    "abbreviation": "none",
+                    "decimalPlaces": {
+                      "type": "max",
+                      "places": 1
+                    },
+                    "significantFigures": {
+                      "type": "all"
+                    },
+                    "hideGroupSeparator": false
+                  }
+                }
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 3,
+            "width": 3,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "average-session-time",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "d7c06e49",
+                  "fields": [
+                    {
+                      "name": "avg(avg_session_minutes)",
+                      "expression": "AVG(`avg_session_minutes`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "showTitle": true,
+                "title": "Avg Session (min)",
+                "headerAlignment": "right"
+              },
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "avg(avg_session_minutes)",
+                  "style": {
+                    "rules": [
+                      {
+                        "condition": {
+                          "operator": ">="
+                        },
+                        "color": "#00A972"
+                      }
+                    ]
+                  },
+                  "format": {
+                    "type": "number-plain",
+                    "abbreviation": "none",
+                    "decimalPlaces": {
+                      "type": "max",
+                      "places": 2
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "position": {
+            "x": 3,
+            "y": 3,
+            "width": 6,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "last-usage",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "ac8b6538",
+                  "fields": [
+                    {
+                      "name": "last_usage_timestamp",
+                      "expression": "`last_usage_timestamp`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "showTitle": true,
+                "title": "Last Activity",
+                "headerAlignment": "center"
+              },
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "last_usage_timestamp",
+                  "format": {
+                    "type": "date-time",
+                    "date": "locale-short-month",
+                    "time": "locale-hour-minute",
+                    "leadingZeros": true
+                  },
+                  "style": {
+                    "fontSize": 16
+                  }
+                }
+              }
+            }
+          },
+          "position": {
+            "x": 8,
+            "y": 2,
+            "width": 4,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "daily-application-usage",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "1cfe273e",
+                  "fields": [
+                    {
+                      "name": "daily(usage_date)",
+                      "expression": "DATE_TRUNC(\"DAY\", `usage_date`)"
+                    },
+                    {
+                      "name": "sum(usage_events)",
+                      "expression": "SUM(`usage_events`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "frame": {
+                "showTitle": true,
+                "title": "Daily Application Usage"
+              },
+              "mark": {
+                "colors": [
+                  {
+                    "themeColorType": "visualizationColors",
+                    "position": 4
+                  },
+                  {
+                    "themeColorType": "visualizationColors",
+                    "position": 2
+                  },
+                  {
+                    "themeColorType": "visualizationColors",
+                    "position": 3
+                  },
+                  {
+                    "themeColorType": "visualizationColors",
+                    "position": 4
+                  },
+                  {
+                    "themeColorType": "visualizationColors",
+                    "position": 5
+                  },
+                  {
+                    "themeColorType": "visualizationColors",
+                    "position": 6
+                  },
+                  {
+                    "themeColorType": "visualizationColors",
+                    "position": 7
+                  },
+                  {
+                    "themeColorType": "visualizationColors",
+                    "position": 8
+                  },
+                  {
+                    "themeColorType": "visualizationColors",
+                    "position": 9
+                  },
+                  {
+                    "themeColorType": "visualizationColors",
+                    "position": 10
+                  }
+                ]
+              },
+              "widgetType": "line",
+              "encodings": {
+                "x": {
+                  "fieldName": "daily(usage_date)",
+                  "displayName": "Date",
+                  "scale": {
+                    "type": "temporal"
+                  }
+                },
+                "y": {
+                  "fieldName": "sum(usage_events)",
+                  "displayName": "Total Usage",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                },
+                "label": {
+                  "show": false
+                }
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 4,
+            "width": 12,
+            "height": 5
+          }
+        },
+        {
+          "widget": {
+            "name": "monthly-application-usage",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "fccd3e9f",
+                  "fields": [
+                    {
+                      "name": "sum(usage_events)",
+                      "expression": "SUM(`usage_events`)"
+                    },
+                    {
+                      "name": "monthly(usage_month)",
+                      "expression": "DATE_TRUNC(\"MONTH\", `usage_month`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "frame": {
+                "showTitle": true,
+                "title": "Monthly Application Usage"
+              },
+              "widgetType": "pie",
+              "encodings": {
+                "angle": {
+                  "fieldName": "sum(usage_events)",
+                  "scale": {
+                    "type": "quantitative"
+                  },
+                  "displayName": "Usage Per Month"
+                },
+                "color": {
+                  "fieldName": "monthly(usage_month)",
+                  "legend": {
+                    "position": "left",
+                    "hide": false
+                  },
+                  "displayName": "Montly Usage",
+                  "scale": {
+                    "type": "temporal",
+                    "colorRamp": {
+                      "mode": "custom-sequential",
+                      "colors": {
+                        "start": "#FFFFFF",
+                        "end": "#010CFF"
+                      }
+                    }
+                  }
+                },
+                "label": {
+                  "show": true
+                }
+              }
+            }
+          },
+          "position": {
+            "x": 3,
+            "y": 9,
+            "width": 6,
+            "height": 5
+          }
+        },
+        {
+          "widget": {
+            "name": "top-labs-by-application-usage",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "b6ed868b",
+                  "fields": [
+                    {
+                      "name": "sum(usage_events)",
+                      "expression": "SUM(`usage_events`)"
+                    },
+                    {
+                      "name": "lab_name",
+                      "expression": "`lab_name`"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "frame": {
+                "showTitle": true,
+                "title": "Top Labs by Application Usage"
+              },
+              "widgetType": "bar",
+              "encodings": {
+                "x": {
+                  "fieldName": "sum(usage_events)",
+                  "axis": {
+                    "hideLabels": false,
+                    "hideGrid": false,
+                    "hideTitle": false
+                  },
+                  "format": {
+                    "type": "number-plain",
+                    "abbreviation": "none",
+                    "decimalPlaces": {
+                      "type": "exact",
+                      "places": 0
+                    },
+                    "significantFigures": {
+                      "type": "all"
+                    }
+                  },
+                  "displayName": "Total Usage",
+                  "scale": {
+                    "type": "quantitative",
+                    "reverse": false
+                  }
+                },
+                "y": {
+                  "fieldName": "lab_name",
+                  "displayName": "Labs",
+                  "scale": {
+                    "type": "categorical",
+                    "sort": {
+                      "by": "x-reversed"
+                    }
+                  }
+                },
+                "color": {
+                  "fieldName": "sum(usage_events)",
+                  "format": {
+                    "type": "number-plain",
+                    "abbreviation": "none",
+                    "decimalPlaces": {
+                      "type": "max",
+                      "places": 2
+                    },
+                    "significantFigures": {
+                      "type": "all"
+                    }
+                  },
+                  "legend": {
+                    "position": "top",
+                    "hide": true
+                  },
+                  "scale": {
+                    "type": "quantitative",
+                    "colorRamp": {
+                      "mode": "scheme",
+                      "scheme": "greens"
+                    },
+                    "reverse": false
+                  }
+                },
+                "label": {
+                  "show": true,
+                  "showTotal": false
+                }
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 14,
+            "width": 12,
+            "height": 10
+          }
+        },
+        {
+          "widget": {
+            "name": "top-users-by-application-usage-1",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "a974f504",
+                  "fields": [
+                    {
+                      "name": "sum(usage_events)",
+                      "expression": "SUM(`usage_events`)"
+                    },
+                    {
+                      "name": "user_name",
+                      "expression": "`user_name`"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "frame": {
+                "showTitle": true,
+                "title": "Top Users by Application Usage"
+              },
+              "mark": {
+                "layout": "stack"
+              },
+              "widgetType": "bar",
+              "encodings": {
+                "x": {
+                  "fieldName": "sum(usage_events)",
+                  "format": {
+                    "type": "number-plain",
+                    "abbreviation": "none",
+                    "decimalPlaces": {
+                      "type": "exact",
+                      "places": 0
+                    },
+                    "significantFigures": {
+                      "type": "all"
+                    }
+                  },
+                  "displayName": "Total Usage",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                },
+                "y": {
+                  "fieldName": "user_name",
+                  "displayName": "Users",
+                  "scale": {
+                    "type": "categorical",
+                    "sort": {
+                      "by": "x-reversed"
+                    }
+                  }
+                },
+                "color": {
+                  "fieldName": "sum(usage_events)",
+                  "legend": {
+                    "position": "top",
+                    "hideTitle": true,
+                    "hide": true
+                  },
+                  "format": {
+                    "type": "number-plain",
+                    "abbreviation": "compact",
+                    "decimalPlaces": {
+                      "type": "exact",
+                      "places": 2
+                    },
+                    "significantFigures": {
+                      "type": "exact",
+                      "figures": 3
+                    }
+                  },
+                  "scale": {
+                    "type": "quantitative",
+                    "colorRamp": {
+                      "mode": "scheme",
+                      "scheme": "greenblue"
+                    }
+                  }
+                },
+                "label": {
+                  "show": true,
+                  "showTotal": false
+                }
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 62,
+            "width": 12,
+            "height": 7
+          }
+        },
+        {
+          "widget": {
+            "name": "activity-details",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "21cd0301",
+                  "fields": [
+                    {
+                      "name": "usage_date",
+                      "expression": "`usage_date`"
+                    },
+                    {
+                      "name": "start_datetime",
+                      "expression": "`start_datetime`"
+                    },
+                    {
+                      "name": "user_name",
+                      "expression": "`user_name`"
+                    },
+                    {
+                      "name": "lab_name",
+                      "expression": "`lab_name`"
+                    },
+                    {
+                      "name": "region",
+                      "expression": "`region`"
+                    },
+                    {
+                      "name": "event_type",
+                      "expression": "`event_type`"
+                    },
+                    {
+                      "name": "object_name",
+                      "expression": "`object_name`"
+                    },
+                    {
+                      "name": "folder_name",
+                      "expression": "`folder_name`"
+                    },
+                    {
+                      "name": "session_minutes",
+                      "expression": "`session_minutes`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "showTitle": true,
+                "title": "Activity Details"
+              },
+              "widgetType": "table",
+              "encodings": {
+                "columns": [
+                  {
+                    "fieldName": "usage_date"
+                  },
+                  {
+                    "fieldName": "start_datetime"
+                  },
+                  {
+                    "fieldName": "user_name"
+                  },
+                  {
+                    "fieldName": "lab_name"
+                  },
+                  {
+                    "fieldName": "region"
+                  },
+                  {
+                    "fieldName": "event_type"
+                  },
+                  {
+                    "fieldName": "object_name"
+                  },
+                  {
+                    "fieldName": "folder_name"
+                  },
+                  {
+                    "fieldName": "session_minutes"
+                  }
+                ]
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 77,
+            "width": 12,
+            "height": 8
+          }
+        },
+        {
+          "widget": {
+            "name": "efdefb69",
+            "multilineTextboxSpec": {
+              "lines": [
+                "# <span style=\"text-align:center;display:block\">Application Usage Dashboard</span>"
+              ]
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 0,
+            "width": 12,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "06bdde54",
+            "multilineTextboxSpec": {
+              "lines": [
+                "### <span style=\"text-align:center;display:block\"><span style=\"font-size:16px\">Tracks user adoption, lab activity, and interaction patterns across all applications.</span></span>"
+              ]
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 1,
+            "width": 12,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "labs-by-application-stacked",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "c1d2e3f4",
+                  "fields": [
+                    {
+                      "name": "application_name",
+                      "expression": "`application_name`"
+                    },
+                    {
+                      "name": "sum(usage_events)",
+                      "expression": "SUM(`usage_events`)"
+                    },
+                    {
+                      "name": "lab_name",
+                      "expression": "`lab_name`"
+                    },
+                    {
+                      "name": "monthly(usage_month)",
+                      "expression": "DATE_TRUNC(\"MONTH\", `usage_month`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "facet": {
+                "type": "wrap",
+                "fieldName": "monthly(usage_month)",
+                "header": {
+                  "title": "Month"
+                },
+                "scale": {
+                  "type": "categorical"
+                }
+              },
+              "version": 3,
+              "frame": {
+                "showTitle": true,
+                "title": "Lab Usage by Application (Monthly)",
+                "headerAlignment": "center"
+              },
+              "widgetType": "bar",
+              "encodings": {
+                "x": {
+                  "fieldName": "sum(usage_events)",
+                  "axis": {
+                    "hideLabels": false,
+                    "hideGrid": false,
+                    "hideTitle": false
+                  },
+                  "format": {
+                    "type": "number-plain",
+                    "abbreviation": "none",
+                    "decimalPlaces": {
+                      "type": "exact",
+                      "places": 0
+                    }
+                  },
+                  "displayName": "Total Usage",
+                  "scale": {
+                    "type": "quantitative",
+                    "reverse": false
+                  }
+                },
+                "y": {
+                  "fieldName": "lab_name",
+                  "displayName": "Labs",
+                  "scale": {
+                    "type": "categorical",
+                    "sort": {
+                      "by": "x-reversed"
+                    }
+                  }
+                },
+                "color": {
+                  "fieldName": "application_name",
+                  "legend": {
+                    "position": "top",
+                    "hide": false
+                  },
+                  "displayName": "Application",
+                  "scale": {
+                    "type": "categorical",
+                    "mappings": [
+                      {
+                        "value": "MANUFACTURING_V2",
+                        "color": "#4343FF"
+                      },
+                      {
+                        "value": "MANUFACTURING_RxSR_RxMFGOA",
+                        "color": "#4396FF"
+                      },
+                      {
+                        "value": "LEADTIME",
+                        "color": "#2EB62C"
+                      },
+                      {
+                        "value": "HC_BASKET_TRACKING",
+                        "color": "#2AF598"
+                      },
+                      {
+                        "value": "EMFitting",
+                        "color": "#22E4AC"
+                      },
+                      {
+                        "value": "DEFECTS_ANALYSIS",
+                        "color": "#14C9CB"
+                      },
+                      {
+                        "value": "BUDGET_FORECAST_V2",
+                        "color": "#08B3E5"
+                      },
+                      {
+                        "value": "MANUFACTURING_RxSRDashboard",
+                        "color": "#61D5FF"
+                      },
+                      {
+                        "value": "AEL_BCP_ANALYSIS",
+                        "color": "#0000FF"
+                      },
+                      {
+                        "value": "Optical Analysis",
+                        "color": "#83D475"
+                      },
+                      {
+                        "value": "Servicerate Analysis/Order Analysis",
+                        "color": "#C6EC00"
+                      }
+                    ]
+                  }
+                },
+                "label": {
+                  "show": false,
+                  "showTotal": true
+                }
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 35,
+            "width": 12,
+            "height": 16
+          }
+        },
+        {
+          "widget": {
+            "name": "unknown-users-detail",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "a1b2c3d4",
+                  "fields": [
+                    {
+                      "name": "user_name",
+                      "expression": "`user_name`"
+                    },
+                    {
+                      "name": "application_name",
+                      "expression": "`application_name`"
+                    },
+                    {
+                      "name": "usage_month",
+                      "expression": "`usage_month`"
+                    },
+                    {
+                      "name": "usage_events",
+                      "expression": "`usage_events`"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "showTitle": true,
+                "title": "Unknown Lab Users"
+              },
+              "widgetType": "table",
+              "encodings": {
+                "columns": [
+                  {
+                    "fieldName": "user_name"
+                  },
+                  {
+                    "fieldName": "application_name"
+                  },
+                  {
+                    "fieldName": "usage_month"
+                  },
+                  {
+                    "fieldName": "usage_events"
+                  }
+                ]
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 69,
+            "width": 12,
+            "height": 8
+          }
+        },
+        {
+          "widget": {
+            "name": "34fbd64b",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "c1d2e3f4",
+                  "fields": [
+                    {
+                      "name": "monthly(usage_month)",
+                      "expression": "DATE_TRUNC(\"MONTH\", `usage_month`)"
+                    },
+                    {
+                      "name": "sum(usage_events)",
+                      "expression": "SUM(`usage_events`)"
+                    },
+                    {
+                      "name": "lab_name",
+                      "expression": "`lab_name`"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "frame": {
+                "showTitle": true,
+                "title": "Monthly Usage by Application "
+              },
+              "mark": {
+                "layout": "stack"
+              },
+              "widgetType": "bar",
+              "encodings": {
+                "x": {
+                  "fieldName": "sum(usage_events)",
+                  "axis": {
+                    "hideLabels": false,
+                    "hideGrid": false,
+                    "hideTitle": false
+                  },
+                  "format": {
+                    "type": "number-plain",
+                    "abbreviation": "none",
+                    "decimalPlaces": {
+                      "type": "exact",
+                      "places": 0
+                    }
+                  },
+                  "displayName": "Total Usage",
+                  "scale": {
+                    "type": "quantitative",
+                    "reverse": false
+                  }
+                },
+                "y": {
+                  "fieldName": "lab_name",
+                  "displayName": "Labs",
+                  "scale": {
+                    "type": "categorical",
+                    "sort": {
+                      "by": "x-reversed"
+                    }
+                  }
+                },
+                "color": {
+                  "fieldName": "monthly(usage_month)",
+                  "legend": {
+                    "position": "top",
+                    "hide": false
+                  },
+                  "format": {
+                    "type": "date-time",
+                    "date": "locale-short-month",
+                    "time": "locale-hour-minute"
+                  },
+                  "displayName": "Month",
+                  "scale": {
+                    "type": "categorical",
+                    "mappings": [
+                      {
+                        "value": "MANUFACTURING_V2",
+                        "color": "#4343FF"
+                      },
+                      {
+                        "value": "MANUFACTURING_RxSR_RxMFGOA",
+                        "color": "#4396FF"
+                      },
+                      {
+                        "value": "LEADTIME",
+                        "color": "#2EB62C"
+                      },
+                      {
+                        "value": "HC_BASKET_TRACKING",
+                        "color": "#2AF598"
+                      },
+                      {
+                        "value": "EMFitting",
+                        "color": "#22E4AC"
+                      },
+                      {
+                        "value": "DEFECTS_ANALYSIS",
+                        "color": "#14C9CB"
+                      },
+                      {
+                        "value": "BUDGET_FORECAST_V2",
+                        "color": "#08B3E5"
+                      },
+                      {
+                        "value": "MANUFACTURING_RxSRDashboard",
+                        "color": "#61D5FF"
+                      },
+                      {
+                        "value": "AEL_BCP_ANALYSIS",
+                        "color": "#0000FF"
+                      },
+                      {
+                        "value": "Optical Analysis",
+                        "color": "#83D475"
+                      },
+                      {
+                        "value": "Servicerate Analysis/Order Analysis",
+                        "color": "#C6EC00"
+                      }
+                    ],
+                    "sort": {
+                      "by": "x"
+                    }
+                  }
+                },
+                "label": {
+                  "show": true,
+                  "showTotal": true
+                }
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 24,
+            "width": 12,
+            "height": 11
+          }
+        },
+        {
+          "widget": {
+            "name": "e29ce84a",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "c1d2e3f4",
+                  "fields": [
+                    {
+                      "name": "sum(usage_events)",
+                      "expression": "SUM(`usage_events`)"
+                    },
+                    {
+                      "name": "usage_month",
+                      "expression": "`usage_month`"
+                    },
+                    {
+                      "name": "lab_name",
+                      "expression": "`lab_name`"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "frame": {
+                "showTitle": true,
+                "title": "Monthly Usage by Application "
+              },
+              "widgetType": "heatmap",
+              "encodings": {
+                "x": {
+                  "fieldName": "usage_month",
+                  "displayName": "Month",
+                  "scale": {
+                    "type": "categorical"
+                  }
+                },
+                "y": {
+                  "fieldName": "lab_name",
+                  "displayName": "Labs",
+                  "scale": {
+                    "type": "categorical",
+                    "sort": {
+                      "by": "custom-order",
+                      "orderedValues": [
+                        "Multi-lab-access",
+                        "Unknown",
+                        "AICHI",
+                        "CHLOE",
+                        "CS_ELIOT",
+                        "CS_LABEX",
+                        "CS_SEDICO",
+                        "CS_TRISTAR",
+                        "EIPL_DEL",
+                        "ELTL",
+                        "EMIL",
+                        "EMTC",
+                        "EOLT",
+                        "PR_KL",
+                        "PR_SHE",
+                        "PR_LTC_CKR",
+                        "EIPL_GND",
+                        "PR_ESSNS",
+                        "CS_ECO2"
+                      ]
+                    }
+                  }
+                },
+                "color": {
+                  "fieldName": "sum(usage_events)",
+                  "displayName": "Total Usage",
+                  "scale": {
+                    "type": "quantitative",
+                    "colorRamp": {
+                      "mode": "scheme",
+                      "scheme": "greenblue"
+                    }
+                  }
+                },
+                "label": {
+                  "show": true
+                }
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 51,
+            "width": 12,
+            "height": 11
+          }
+        }
+      ],
+      "pageType": "PAGE_TYPE_CANVAS",
+      "layoutVersion": "GRID_V1"
+    },
+    {
+      "name": "d1e8ec40",
+      "displayName": "Global Filters",
+      "layout": [
+        {
+          "widget": {
+            "name": "c268688d",
+            "queries": [
+              {
+                "name": "dashboards/01f14a05ae851507bb794050a3386b74/datasets/01f14a05ae85179bb2aa9fcc9c8c38f6_application_name",
+                "query": {
+                  "datasetName": "4c824b19",
+                  "fields": [
+                    {
+                      "name": "application_name",
+                      "expression": "`application_name`"
+                    },
+                    {
+                      "name": "application_name_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "dashboards/01f14a05ae851507bb794050a3386b74/datasets/01f14a05ae8517cfb361c2769f2b54eb_application_name",
+                "query": {
+                  "datasetName": "7b5d62c3",
+                  "fields": [
+                    {
+                      "name": "application_name",
+                      "expression": "`application_name`"
+                    },
+                    {
+                      "name": "application_name_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "dashboards/01f14a05ae851507bb794050a3386b74/datasets/01f14a05ae8517d89ffb1dae8b9ca582_application_name",
+                "query": {
+                  "datasetName": "87abe982",
+                  "fields": [
+                    {
+                      "name": "application_name",
+                      "expression": "`application_name`"
+                    },
+                    {
+                      "name": "application_name_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "dashboards/01f14a05ae851507bb794050a3386b74/datasets/01f14a05ae8517dfbda294f952711807_application_name",
+                "query": {
+                  "datasetName": "d6499ecc",
+                  "fields": [
+                    {
+                      "name": "application_name",
+                      "expression": "`application_name`"
+                    },
+                    {
+                      "name": "application_name_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "dashboards/01f14a05ae851507bb794050a3386b74/datasets/01f14a05ae8517e6b70cd18ea3ddf741_application_name",
+                "query": {
+                  "datasetName": "d7c06e49",
+                  "fields": [
+                    {
+                      "name": "application_name",
+                      "expression": "`application_name`"
+                    },
+                    {
+                      "name": "application_name_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "dashboards/01f14a05ae851507bb794050a3386b74/datasets/01f14a05ae8517f2a583bafd8285174e_application_name",
+                "query": {
+                  "datasetName": "1cfe273e",
+                  "fields": [
+                    {
+                      "name": "application_name",
+                      "expression": "`application_name`"
+                    },
+                    {
+                      "name": "application_name_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "dashboards/01f14a05ae851507bb794050a3386b74/datasets/01f14a05ae8517f69e6d596ce58f317f_application_name",
+                "query": {
+                  "datasetName": "fccd3e9f",
+                  "fields": [
+                    {
+                      "name": "application_name",
+                      "expression": "`application_name`"
+                    },
+                    {
+                      "name": "application_name_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "dashboards/01f14a05ae851507bb794050a3386b74/datasets/01f14a05ae8517fabc7efccd4a0f1758_application_name",
+                "query": {
+                  "datasetName": "b6ed868b",
+                  "fields": [
+                    {
+                      "name": "application_name",
+                      "expression": "`application_name`"
+                    },
+                    {
+                      "name": "application_name_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "dashboards/01f14a05ae851507bb794050a3386b74/datasets/01f14a05ae8517fe87aebfcef66f434e_application_name",
+                "query": {
+                  "datasetName": "a974f504",
+                  "fields": [
+                    {
+                      "name": "application_name",
+                      "expression": "`application_name`"
+                    },
+                    {
+                      "name": "application_name_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "dashboards/01f14a05ae851507bb794050a3386b74/datasets/01f14a05ae851807bb651d3e1ec9f2aa_application_name",
+                "query": {
+                  "datasetName": "702b4007",
+                  "fields": [
+                    {
+                      "name": "application_name",
+                      "expression": "`application_name`"
+                    },
+                    {
+                      "name": "application_name_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "dashboards/01f14a05ae851507bb794050a3386b74/datasets/01f14a05ae85180f974da86737a5be04_application_name",
+                "query": {
+                  "datasetName": "21cd0301",
+                  "fields": [
+                    {
+                      "name": "application_name",
+                      "expression": "`application_name`"
+                    },
+                    {
+                      "name": "application_name_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "dashboards/01f14a05ae851507bb794050a3386b74/datasets/01f14a05ae851813aa0cdf88b1ae7255_application_name",
+                "query": {
+                  "datasetName": "e3f7a901",
+                  "fields": [
+                    {
+                      "name": "application_name",
+                      "expression": "`application_name`"
+                    },
+                    {
+                      "name": "application_name_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "dashboards/01f14a05ae851507bb794050a3386b74/datasets/01f14a05ae851817934eebc9259cede3_application_name",
+                "query": {
+                  "datasetName": "c1d2e3f4",
+                  "fields": [
+                    {
+                      "name": "application_name",
+                      "expression": "`application_name`"
+                    },
+                    {
+                      "name": "application_name_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "dashboards/01f14a05ae851507bb794050a3386b74/datasets/01f14a05ae85181ba433c7c523330835_application_name",
+                "query": {
+                  "datasetName": "a1b2c3d4",
+                  "fields": [
+                    {
+                      "name": "application_name",
+                      "expression": "`application_name`"
+                    },
+                    {
+                      "name": "application_name_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "disallowAll": false,
+              "scale": {
+                "type": "categorical",
+                "sort": {
+                  "by": "natural-order"
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Application"
+              },
+              "widgetType": "filter-single-select",
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "application_name",
+                    "queryName": "dashboards/01f14a05ae851507bb794050a3386b74/datasets/01f14a05ae85179bb2aa9fcc9c8c38f6_application_name"
+                  },
+                  {
+                    "fieldName": "application_name",
+                    "queryName": "dashboards/01f14a05ae851507bb794050a3386b74/datasets/01f14a05ae8517cfb361c2769f2b54eb_application_name"
+                  },
+                  {
+                    "fieldName": "application_name",
+                    "queryName": "dashboards/01f14a05ae851507bb794050a3386b74/datasets/01f14a05ae8517d89ffb1dae8b9ca582_application_name"
+                  },
+                  {
+                    "fieldName": "application_name",
+                    "queryName": "dashboards/01f14a05ae851507bb794050a3386b74/datasets/01f14a05ae8517dfbda294f952711807_application_name"
+                  },
+                  {
+                    "fieldName": "application_name",
+                    "queryName": "dashboards/01f14a05ae851507bb794050a3386b74/datasets/01f14a05ae8517e6b70cd18ea3ddf741_application_name"
+                  },
+                  {
+                    "fieldName": "application_name",
+                    "queryName": "dashboards/01f14a05ae851507bb794050a3386b74/datasets/01f14a05ae8517f2a583bafd8285174e_application_name"
+                  },
+                  {
+                    "fieldName": "application_name",
+                    "queryName": "dashboards/01f14a05ae851507bb794050a3386b74/datasets/01f14a05ae8517f69e6d596ce58f317f_application_name"
+                  },
+                  {
+                    "fieldName": "application_name",
+                    "queryName": "dashboards/01f14a05ae851507bb794050a3386b74/datasets/01f14a05ae8517fabc7efccd4a0f1758_application_name"
+                  },
+                  {
+                    "fieldName": "application_name",
+                    "queryName": "dashboards/01f14a05ae851507bb794050a3386b74/datasets/01f14a05ae8517fe87aebfcef66f434e_application_name"
+                  },
+                  {
+                    "fieldName": "application_name",
+                    "queryName": "dashboards/01f14a05ae851507bb794050a3386b74/datasets/01f14a05ae851807bb651d3e1ec9f2aa_application_name"
+                  },
+                  {
+                    "fieldName": "application_name",
+                    "queryName": "dashboards/01f14a05ae851507bb794050a3386b74/datasets/01f14a05ae85180f974da86737a5be04_application_name"
+                  },
+                  {
+                    "fieldName": "application_name",
+                    "queryName": "dashboards/01f14a05ae851507bb794050a3386b74/datasets/01f14a05ae851813aa0cdf88b1ae7255_application_name"
+                  },
+                  {
+                    "fieldName": "application_name",
+                    "queryName": "dashboards/01f14a05ae851507bb794050a3386b74/datasets/01f14a05ae851817934eebc9259cede3_application_name"
+                  },
+                  {
+                    "fieldName": "application_name",
+                    "queryName": "dashboards/01f14a05ae851507bb794050a3386b74/datasets/01f14a05ae85181ba433c7c523330835_application_name"
+                  }
+                ]
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 6,
+            "width": 1,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "unknown-lab-user-filter",
+            "queries": [
+              {
+                "name": "dashboards/01f13e08dcab16fc80a16dee1d943714/datasets/01f13e08dcae17c3801ececfafc2209a_user_name",
+                "query": {
+                  "datasetName": "e3f7a901",
+                  "fields": [
+                    {
+                      "name": "user_name",
+                      "expression": "`user_name`"
+                    },
+                    {
+                      "name": "user_name_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "dashboards/01f13e08dcab16fc80a16dee1d943714/datasets/01f13e08dcae17bc8c2c8187bcd9d811_user_name",
+                "query": {
+                  "datasetName": "21cd0301",
+                  "fields": [
+                    {
+                      "name": "user_name",
+                      "expression": "`user_name`"
+                    },
+                    {
+                      "name": "user_name_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "dashboards/01f13e08dcab16fc80a16dee1d943714/datasets/01f13e08dcae1796aa1c037670f6d99e_user_name",
+                "query": {
+                  "datasetName": "b6ed868b",
+                  "fields": [
+                    {
+                      "name": "user_name",
+                      "expression": "`user_name`"
+                    },
+                    {
+                      "name": "user_name_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "dashboards/01f13e08dcab16fc80a16dee1d943714/datasets/01f13e08dcae1771aed7567708cbf49e_user_name",
+                "query": {
+                  "datasetName": "d6499ecc",
+                  "fields": [
+                    {
+                      "name": "user_name",
+                      "expression": "`user_name`"
+                    },
+                    {
+                      "name": "user_name_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "dashboards/01f13e08dcab16fc80a16dee1d943714/datasets/01f13e08dcae1779af59b7aa854c7d76_user_name",
+                "query": {
+                  "datasetName": "d7c06e49",
+                  "fields": [
+                    {
+                      "name": "user_name",
+                      "expression": "`user_name`"
+                    },
+                    {
+                      "name": "user_name_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "dashboards/01f13e08dcab16fc80a16dee1d943714/datasets/01f13e08dcae16fc9928278fd3b2314d_user_name",
+                "query": {
+                  "datasetName": "4c824b19",
+                  "fields": [
+                    {
+                      "name": "user_name",
+                      "expression": "`user_name`"
+                    },
+                    {
+                      "name": "user_name_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "dashboards/01f13e08dcab16fc80a16dee1d943714/datasets/01f13e08dcae179dabbcc33d2b47962e_user_name",
+                "query": {
+                  "datasetName": "a974f504",
+                  "fields": [
+                    {
+                      "name": "user_name",
+                      "expression": "`user_name`"
+                    },
+                    {
+                      "name": "user_name_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "dashboards/01f13e08dcab16fc80a16dee1d943714/datasets/01f13e08dcae17d8a8a385d28311ab8c_user_name",
+                "query": {
+                  "datasetName": "e5f6a7b8",
+                  "fields": [
+                    {
+                      "name": "user_name",
+                      "expression": "`user_name`"
+                    },
+                    {
+                      "name": "user_name_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "disallowAll": false,
+              "scale": {
+                "type": "categorical",
+                "sort": {
+                  "by": "natural-order"
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Users"
+              },
+              "widgetType": "filter-single-select",
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "user_name",
+                    "queryName": "dashboards/01f13e08dcab16fc80a16dee1d943714/datasets/01f13e08dcae17c3801ececfafc2209a_user_name"
+                  },
+                  {
+                    "fieldName": "user_name",
+                    "queryName": "dashboards/01f13e08dcab16fc80a16dee1d943714/datasets/01f13e08dcae17bc8c2c8187bcd9d811_user_name"
+                  },
+                  {
+                    "fieldName": "user_name",
+                    "queryName": "dashboards/01f13e08dcab16fc80a16dee1d943714/datasets/01f13e08dcae1796aa1c037670f6d99e_user_name"
+                  },
+                  {
+                    "fieldName": "user_name",
+                    "queryName": "dashboards/01f13e08dcab16fc80a16dee1d943714/datasets/01f13e08dcae1771aed7567708cbf49e_user_name"
+                  },
+                  {
+                    "fieldName": "user_name",
+                    "queryName": "dashboards/01f13e08dcab16fc80a16dee1d943714/datasets/01f13e08dcae1779af59b7aa854c7d76_user_name"
+                  },
+                  {
+                    "fieldName": "user_name",
+                    "queryName": "dashboards/01f13e08dcab16fc80a16dee1d943714/datasets/01f13e08dcae16fc9928278fd3b2314d_user_name"
+                  },
+                  {
+                    "fieldName": "user_name",
+                    "queryName": "dashboards/01f13e08dcab16fc80a16dee1d943714/datasets/01f13e08dcae179dabbcc33d2b47962e_user_name"
+                  },
+                  {
+                    "fieldName": "user_name",
+                    "queryName": "dashboards/01f13e08dcab16fc80a16dee1d943714/datasets/01f13e08dcae17d8a8a385d28311ab8c_user_name"
+                  }
+                ]
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 0,
+            "width": 1,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "labs",
+            "queries": [
+              {
+                "name": "dashboards/01f14a05ae851507bb794050a3386b74/datasets/01f14a05ae8517fabc7efccd4a0f1758_lab_name",
+                "query": {
+                  "datasetName": "b6ed868b",
+                  "fields": [
+                    {
+                      "name": "lab_name",
+                      "expression": "`lab_name`"
+                    },
+                    {
+                      "name": "lab_name_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "dashboards/01f14a05ae851507bb794050a3386b74/datasets/01f14a05ae85181fb6e2bd8937d37cdf_lab_name",
+                "query": {
+                  "datasetName": "e5f6a7b8",
+                  "fields": [
+                    {
+                      "name": "lab_name",
+                      "expression": "`lab_name`"
+                    },
+                    {
+                      "name": "lab_name_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "dashboards/01f14a05ae851507bb794050a3386b74/datasets/01f14a05ae8517fe87aebfcef66f434e_lab_name",
+                "query": {
+                  "datasetName": "a974f504",
+                  "fields": [
+                    {
+                      "name": "lab_name",
+                      "expression": "`lab_name`"
+                    },
+                    {
+                      "name": "lab_name_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "dashboards/01f14a05ae851507bb794050a3386b74/datasets/01f14a05ae85180f974da86737a5be04_lab_name",
+                "query": {
+                  "datasetName": "21cd0301",
+                  "fields": [
+                    {
+                      "name": "lab_name",
+                      "expression": "`lab_name`"
+                    },
+                    {
+                      "name": "lab_name_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "showTitle": true,
+                "title": "Labs"
+              },
+              "widgetType": "filter-single-select",
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "lab_name",
+                    "queryName": "dashboards/01f14a05ae851507bb794050a3386b74/datasets/01f14a05ae8517fabc7efccd4a0f1758_lab_name"
+                  },
+                  {
+                    "fieldName": "lab_name",
+                    "queryName": "dashboards/01f14a05ae851507bb794050a3386b74/datasets/01f14a05ae85181fb6e2bd8937d37cdf_lab_name"
+                  },
+                  {
+                    "fieldName": "lab_name",
+                    "queryName": "dashboards/01f14a05ae851507bb794050a3386b74/datasets/01f14a05ae8517fe87aebfcef66f434e_lab_name"
+                  },
+                  {
+                    "fieldName": "lab_name",
+                    "queryName": "dashboards/01f14a05ae851507bb794050a3386b74/datasets/01f14a05ae85180f974da86737a5be04_lab_name"
+                  }
+                ]
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 2,
+            "width": 1,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "month",
+            "queries": [
+              {
+                "name": "dashboards/01f14a05ae851507bb794050a3386b74/datasets/01f14a05ae8517fabc7efccd4a0f1758_usage_month",
+                "query": {
+                  "datasetName": "b6ed868b",
+                  "fields": [
+                    {
+                      "name": "usage_month",
+                      "expression": "`usage_month`"
+                    },
+                    {
+                      "name": "usage_month_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "showTitle": true,
+                "title": "Month"
+              },
+              "disallowAll": false,
+              "widgetType": "filter-single-select",
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "usage_month",
+                    "queryName": "dashboards/01f14a05ae851507bb794050a3386b74/datasets/01f14a05ae8517fabc7efccd4a0f1758_usage_month"
+                  }
+                ]
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 4,
+            "width": 1,
+            "height": 2
+          }
+        }
+      ],
+      "pageType": "PAGE_TYPE_GLOBAL_FILTERS",
+      "layoutVersion": "GRID_V1"
+    }
+  ],
+  "uiSettings": {
+    "theme": {
+      "widgetHeaderAlignment": "ALIGNMENT_UNSPECIFIED"
+    },
+    "applyModeEnabled": false
+  }
+}
